@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1530">
+  <title>iBanking — Thanh toán học phí</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Trang chủ iBanking">
+      <span class="brand-mark" aria-hidden="true"><img src="/static/logo.svg" alt=""></span>
+      <span><strong>iBanking</strong><small>Digital Banking</small></span>
+    </a>
+    <div class="topbar-actions">
+      <span class="secure-status"><i></i>Kết nối an toàn</span>
+      <button id="logoutButton" class="button button-quiet hidden" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>Đăng xuất</button>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section id="loginView" class="auth-layout" aria-labelledby="loginTitle">
+      <div class="auth-intro">
+        <span class="section-kicker"><i></i>Ngân hàng số an toàn</span>
+        <h1>Thanh toán học phí<br><em>nhanh chóng, an tâm.</em></h1>
+        <p>Tra cứu chính xác theo mã sinh viên, xác thực qua OTP và theo dõi giao dịch trong một trải nghiệm liền mạch.</p>
+        <div class="trust-row" aria-label="Các tính năng bảo mật">
+          <div><span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V7l8-4zM9 12l2 2 4-4"/></svg></span><span><strong>Xác thực OTP</strong><small>Bảo vệ từng giao dịch</small></span></div>
+          <div><span class="feature-icon"><svg viewBox="0 0 24 24"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg></span><span><strong>Cập nhật tức thì</strong><small>Số dư và học phí</small></span></div>
+        </div>
+      </div>
+      <div class="auth-side">
+        <form id="loginForm" class="panel auth-card">
+          <div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg></span><div><p class="section-kicker">Chào mừng trở lại</p><h2 id="loginTitle">Đăng nhập tài khoản</h2></div></div>
+          <label for="username">Tên đăng nhập<span class="input-wrap"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg><input id="username" name="username" autocomplete="username" required value="hoangthaidangkhoa"></span></label>
+          <label for="password">Mật khẩu<span class="input-wrap"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg><input id="password" name="password" type="password" autocomplete="current-password" required value="Password123@"></span></label>
+          <button class="button button-primary" type="submit"><span>Đăng nhập an toàn</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <p id="loginError" class="message error hidden" role="alert"></p>
+        </form>
+      </div>
+    </section>
+
+    <section id="appView" class="app-view hidden" aria-labelledby="welcomeName">
+      <div class="welcome-row">
+        <div><p class="section-kicker">Tổng quan tài khoản</p><h1 id="welcomeName">Xin chào</h1><p class="welcome-subtitle">Quản lý và thanh toán học phí an toàn tại một nơi.</p></div>
+      </div>
+
+      <div class="summary-grid">
+        <article class="balance-card"><div class="balance-top"><span>Số dư khả dụng</span><span class="currency-chip">VND</span></div><strong id="availableBalance">—</strong><div class="balance-bottom"><span id="accountNumber">Tài khoản —</span><span class="card-dots">••••</span></div><div class="balance-orb one"></div><div class="balance-orb two"></div></article>
+        <article class="panel profile-card"><div class="profile-icon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg></div><div><span>Thông tin liên hệ</span><strong id="profileEmail">—</strong><small id="profilePhone">—</small></div><span class="verified"><svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l2.5 2.5L16 9"/></svg>Đã xác thực</span></article>
+      </div>
+
+      <div class="content-grid">
+        <section class="panel payment-panel">
+          <div class="panel-heading"><div><p class="section-kicker">Giao dịch mới</p><h2>Thanh toán học phí</h2></div><span id="stepBadge" class="step-badge">Bước 1/3</span></div>
+          <ol class="stepper" aria-label="Tiến trình thanh toán"><li class="active"><span>1</span><div><strong>Tra cứu</strong><small>Thông tin học phí</small></div></li><li><span>2</span><div><strong>Xác thực</strong><small>Mã OTP</small></div></li><li><span>3</span><div><strong>Hoàn tất</strong><small>Kết quả</small></div></li></ol>
+
+          <div id="lookupStep" class="flow-section">
+            <div class="section-title"><span class="mini-icon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg></span><div><h3>Thông tin người nộp</h3><p>Được lấy tự động từ tài khoản đăng nhập</p></div><span class="readonly-label">Chỉ đọc</span></div>
+            <div class="readonly-grid"><label for="payerName">Họ và tên<input id="payerName" readonly></label><label for="payerPhone">Số điện thoại<input id="payerPhone" readonly></label><label class="span-2" for="payerEmail">Email nhận OTP<input id="payerEmail" readonly></label></div>
+            <div class="divider"></div>
+            <div class="section-title"><span class="mini-icon blue"><svg viewBox="0 0 24 24"><path d="M4 21h16M6 21V9l6-5 6 5v12M9 13h6M9 17h6"/></svg></span><div><h3>Tra cứu khoản học phí</h3><p>Nhập mã số sinh viên cần thanh toán</p></div></div>
+            <form id="lookupForm" class="lookup-form"><label for="studentCode">Mã số sinh viên<span class="input-wrap"><svg viewBox="0 0 24 24"><path d="M11 19a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM21 21l-4.3-4.3"/></svg><input id="studentCode" required minlength="3" maxlength="20" pattern="[A-Za-z0-9-]+" placeholder="Ví dụ: 52400001" value="52400001"></span></label><button class="button button-secondary" type="submit">Tra cứu</button></form>
+            <div id="tuitionCard" class="tuition-card hidden">
+              <div class="tuition-head"><span class="success-mark"><svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l2.5 2.5L16 9"/></svg></span><div><strong>Đã tìm thấy khoản học phí</strong><small>Vui lòng kiểm tra kỹ thông tin trước khi xác nhận</small></div></div>
+              <dl class="tuition-data"><div><dt>Mã sinh viên</dt><dd id="tuitionStudentCode"></dd></div><div><dt>Họ và tên</dt><dd id="tuitionStudentName"></dd></div><div><dt>Học kỳ</dt><dd id="tuitionTerm"></dd></div><div class="amount-row"><dt>Số tiền thanh toán</dt><dd id="tuitionAmount"></dd></div></dl>
+              <label class="terms"><input id="acceptTerms" type="checkbox"><span class="checkmark"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg></span><span>Tôi xác nhận thông tin trên là chính xác và đồng ý thanh toán <strong>toàn bộ khoản học phí</strong>.</span></label>
+              <button id="createPaymentButton" class="button button-primary" type="button" disabled><span>Xác nhận và nhận OTP</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+            </div>
+          </div>
+
+          <div id="otpStep" class="flow-section hidden">
+            <div class="otp-illustration"><div class="otp-icon"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 7l9 7 9-7"/></svg></div><span class="otp-shield"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3zM9 11l2 2 4-4"/></svg></span></div>
+            <div class="otp-copy"><p class="section-kicker">Xác thực giao dịch</p><h3>Nhập mã OTP</h3><p>Mã gồm 6 chữ số đã được gửi tới <strong id="maskedEmail"></strong></p></div>
+            <div class="timer-box"><span>Mã có hiệu lực trong</span><strong id="otpCountdown">05:00</strong></div>
+            <form id="otpForm"><label class="otp-label" for="otpCode">Mã xác thực<input id="otpCode" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" required placeholder="••••••"></label><button id="verifyOtpButton" class="button button-primary" type="submit"><span>Hoàn tất thanh toán</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button><button id="resendOtpButton" class="button button-link" type="button" disabled>Gửi lại OTP sau 60 giây</button></form>
+            <p class="security-note"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V7l8-4z"/></svg>Không chia sẻ mã OTP với bất kỳ ai, kể cả nhân viên ngân hàng.</p>
+          </div>
+
+          <div id="resultStep" class="flow-section hidden result-box"><div id="resultIcon" class="result-icon"><svg viewBox="0 0 24 24"><path d="M5 12l4 4L19 6"/></svg></div><p class="section-kicker">Giao dịch hoàn tất</p><h3 id="resultTitle">Thanh toán thành công</h3><p id="resultMessage"></p><dl id="resultDetails" class="result-details"></dl><button id="newPaymentButton" class="button button-secondary" type="button">Thực hiện giao dịch mới</button></div>
+          <p id="paymentMessage" class="message hidden" role="status" aria-live="polite"></p>
+        </section>
+
+        <aside class="side-column">
+          <section class="panel history-panel"><div class="panel-heading compact"><div><p class="section-kicker">Hoạt động gần đây</p><h2>Lịch sử giao dịch</h2></div><span class="history-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 3v6h6M12 7v5l3 2"/></svg></span></div><div id="historyList" class="history-list"></div></section>
+          <section class="support-card"><span class="support-icon"><svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0M4 13v5h3v-6H4m16 1v5h-3v-6h3M17 18c0 2-2 3-5 3"/></svg></span><div><strong>Cần hỗ trợ?</strong><p>Hotline demo: <b>1900 0000</b><br>Phục vụ 24/7</p></div></section>
+        </aside>
+      </div>
+    </section>
+  </main>
+  <footer><span>© 2026 iBanking Tuition</span><span>Giao dịch được bảo vệ bằng xác thực OTP</span></footer>
+  <script src="/static/app.js"></script>
+</body>
+</html>

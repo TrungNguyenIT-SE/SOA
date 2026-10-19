@@ -1,0 +1,40 @@
+name: quality-gate
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python and Compose
+        run: |
+          python -m compileall -q services tests
+          docker compose config --quiet
+      - name: Build and start clean stack
+        run: |
+          docker compose build
+          ENABLE_FAULT_INJECTION=true docker compose up -d
+      - name: Wait for gateway
+        run: |
+          for i in {1..60}; do curl -fsS http://localhost:8080/health && exit 0; sleep 2; done
+          docker compose logs
+          exit 1
+      - name: Unit tests
+        run: |
+          docker compose run --rm payment python -m unittest discover -s tests -v
+          docker compose run --rm notification python -m unittest discover -s tests -v
+      - name: Contract and end-to-end tests
+        run: |
+          python tests/e2e/run_contract.py
+          python tests/e2e/run_smoke.py
+          python tests/e2e/run_concurrency.py
+          ENABLE_FAULT_INJECTION=true docker compose up -d --force-recreate payment
+          python tests/e2e/run_resilience.py
+      - name: Container logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,195 @@
+name: soa-tuition
+
+x-common-env: &common-env
+  JWT_SECRET: ${JWT_SECRET:-dev-only-jwt-secret-change-me}
+  INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-dev-only-internal-token}
+
+services:
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web-identity:
+        condition: service_healthy
+      account:
+        condition: service_healthy
+      tuition:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+    networks: [soa-net]
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-soa}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soa_dev_password}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-soa} -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [soa-net]
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [soa-net]
+
+  web-identity:
+    build: ./services/web-identity
+    ports:
+      - "8001:8000"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/identity_db
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-30}
+      DEMO_EMAIL_1: ${DEMO_EMAIL_1:-payer1@example.com}
+      DEMO_EMAIL_2: ${DEMO_EMAIL_2:-payer2@example.com}
+      DEMO_EMAIL_3: ${DEMO_EMAIL_3:-payer3@example.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.identity-api.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/users`) || PathPrefix(`/internal/v1/users`)
+      - traefik.http.routers.identity-api.priority=100
+      - traefik.http.services.identity.loadbalancer.server.port=8000
+      - traefik.http.routers.web.rule=PathPrefix(`/`)
+      - traefik.http.routers.web.priority=1
+      - traefik.http.routers.web.service=identity
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    networks: [soa-net]
+
+  account:
+    build: ./services/account
+    ports:
+      - "8002:8000"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/account_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.account.rule=PathPrefix(`/api/v1/accounts`)
+      - traefik.http.routers.account.priority=100
+      - traefik.http.services.account.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    networks: [soa-net]
+
+  tuition:
+    build: ./services/tuition
+    ports:
+      - "8003:8000"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/tuition_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.tuition.rule=PathPrefix(`/api/v1/tuition-invoices`)
+      - traefik.http.routers.tuition.priority=100
+      - traefik.http.services.tuition.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    networks: [soa-net]
+
+  payment:
+    build: ./services/payment
+    ports:
+      - "8004:8000"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/payment_db
+      ACCOUNT_SERVICE_URL: http://account:8000
+      TUITION_SERVICE_URL: http://tuition:8000
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      OTP_PEPPER: ${OTP_PEPPER:-dev-only-otp-pepper}
+      OTP_TTL_SECONDS: ${OTP_TTL_SECONDS:-300}
+      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+      ENABLE_FAULT_INJECTION: ${ENABLE_FAULT_INJECTION:-false}
+      DEMO_EMAIL_1: ${DEMO_EMAIL_1:-payer1@example.com}
+      DEMO_EMAIL_2: ${DEMO_EMAIL_2:-payer2@example.com}
+      DEMO_EMAIL_3: ${DEMO_EMAIL_3:-payer3@example.com}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      account:
+        condition: service_healthy
+      tuition:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.payment.rule=PathPrefix(`/api/v1/payments`)
+      - traefik.http.routers.payment.priority=100
+      - traefik.http.services.payment.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+    networks: [soa-net]
+
+  notification:
+    build: ./services/notification
+    environment:
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/notification_db
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_USE_TLS: ${SMTP_USE_TLS:-false}
+      SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
+      FROM_EMAIL: ${FROM_EMAIL:-}
+      MAX_DELIVERY_ATTEMPTS: ${MAX_DELIVERY_ATTEMPTS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,pika; c=pika.BlockingConnection(pika.URLParameters(os.environ['RABBITMQ_URL'])); c.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    networks: [soa-net]
+
+volumes:
+  postgres-data:
+
+networks:
+  soa-net:
+    driver: bridge
+
