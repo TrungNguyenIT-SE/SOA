@@ -347,3 +347,107 @@ footer { max-width: 1240px; margin: 0 auto; padding: 0 24px 24px; display: flex;
   border-radius: 999px;
   box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
 }
+
+/* Success Popup Modal */
+.modal-success-box {
+  max-width: 480px;
+  text-align: center;
+  padding: 32px 28px 26px;
+  background: #0f172a;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 35px rgba(16, 185, 129, 0.2);
+  animation: modalPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalPop {
+  0% { opacity: 0; transform: scale(0.92) translateY(12px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-success-icon-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.modal-success-icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.16);
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 24px rgba(16, 185, 129, 0.35);
+  animation: iconPulse 2s infinite ease-in-out;
+}
+
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); box-shadow: 0 0 32px rgba(16, 185, 129, 0.55); }
+}
+
+.modal-success-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0 0 8px 0;
+}
+
+.modal-success-subtitle {
+  font-size: 0.92rem;
+  color: #94a3b8;
+  margin: 0 0 18px 0;
+  line-height: 1.5;
+}
+
+.modal-success-details {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px 18px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal-success-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  padding-bottom: 8px;
+}
+
+.modal-success-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modal-success-label {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.modal-success-val {
+  color: #f1f5f9;
+  font-weight: 600;
+  text-align: right;
+}
+
+.badge-success-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}

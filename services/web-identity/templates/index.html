@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1530">
   <title>iBanking — Quản lý & Thanh toán học phí</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/styles.css?v=2.4">
+  <link rel="stylesheet" href="/static/styles.css?v=2.5">
 </head>
 <body>
   <header class="topbar">
@@ -404,10 +404,31 @@
     </div>
   </div>
 
+  <!-- Modal Thông Báo Thành Công (Success Popup) -->
+  <div id="modalSuccess" class="modal-overlay hidden">
+    <div class="modal-box modal-success-box">
+      <div class="modal-success-icon-wrap">
+        <div class="modal-success-icon">
+          <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+      </div>
+      <h3 id="modalSuccessTitle" class="modal-success-title">Thành Công!</h3>
+      <p id="modalSuccessSubtitle" class="modal-success-subtitle">Hồ sơ đã được cập nhật thành công.</p>
+      <div id="modalSuccessDetails" class="modal-success-details"></div>
+      <div class="modal-actions" style="justify-content: center; margin-top: 22px; border-top: none;">
+        <button type="button" class="button button-primary" onclick="closeModal('modalSuccess')" style="min-width: 140px; font-weight: 600;">
+          Đã Hiểu / Đóng
+        </button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <span>© 2026 iBanking Tuition · Service-Oriented Architecture (SOA)</span>
     <span>Bảo mật giao dịch SAGA · OTP · Database-per-service</span>
   </footer>
-  <script src="/static/app.js?v=2.4"></script>
+  <script src="/static/app.js?v=2.5"></script>
 </body>
 </html>

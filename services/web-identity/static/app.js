@@ -173,6 +173,30 @@ window.closeModal = function (modalId) {
   if (el) el.classList.add("hidden");
 };
 
+window.showSuccessModal = function ({ title = "Thành Công!", subtitle = "", details = [] }) {
+  const titleEl = $("modalSuccessTitle");
+  const subEl = $("modalSuccessSubtitle");
+  const detailsEl = $("modalSuccessDetails");
+
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.innerHTML = subtitle;
+  if (detailsEl) {
+    if (details.length > 0) {
+      detailsEl.style.display = "flex";
+      detailsEl.innerHTML = details.map(d => `
+        <div class="modal-success-row">
+          <span class="modal-success-label">${d.label}</span>
+          <span class="modal-success-val">${d.val}</span>
+        </div>
+      `).join("");
+    } else {
+      detailsEl.style.display = "none";
+      detailsEl.innerHTML = "";
+    }
+  }
+  openModal("modalSuccess");
+};
+
 // Admin Sub-tabs switching
 function switchAdminSubTab(tabName) {
   state.admin.activeTab = tabName;
@@ -310,6 +334,16 @@ $("formUser").addEventListener("submit", async (e) => {
     }
     closeModal("modalUser");
     await loadAdminData();
+    showSuccessModal({
+      title: isUpdate ? "Cập Nhật Người Dùng Thành Công!" : "Thêm Người Dùng Thành Công!",
+      subtitle: `Thông tin tài khoản <strong>${payload.full_name}</strong> đã được lưu thành công.`,
+      details: [
+        { label: "Họ và tên", val: payload.full_name },
+        { label: "Email", val: payload.email || "—" },
+        { label: "Số điện thoại", val: payload.phone || "—" },
+        { label: "Số dư ví", val: `<span style="color:#10b981; font-weight:700;">${money(payload.balance)}</span>` },
+      ]
+    });
   } catch (err) {
     alert("Lỗi: " + err.message);
   }
@@ -581,6 +615,41 @@ $("formStudent").addEventListener("submit", async (e) => {
     }
     closeModal("modalStudent");
     await loadAdminData();
+
+    const payer = (state.admin.users || []).find(u => u.id === payerUserId);
+    const details = [
+      { label: "Mã số sinh viên", val: `<strong>${code}</strong>` },
+      { label: "Họ và tên", val: $("studentNameInput").value.trim() },
+      { label: "Học kỳ", val: term },
+      { label: "Số tiền học phí", val: `<span style="color:#38bdf8; font-weight:700;">${money(amount)}</span>` },
+      { 
+        label: "Trạng thái mới", 
+        val: selectedStatus === "PAID" 
+          ? `<span class="badge-success-tag">✓ ĐÃ NỘP (PAID)</span>` 
+          : `<span style="color:#f59e0b; font-weight:700;">CHƯA NỘP (UNPAID)</span>` 
+      }
+    ];
+
+    if (selectedStatus === "PAID") {
+      if (payer) {
+        details.push({
+          label: "Tài khoản trích nộp",
+          val: `${payer.full_name} (${payer.username})`
+        });
+      }
+      details.push({
+        label: "Xử lý hệ thống SOA",
+        val: `<span style="color:#10b981; font-weight:600;">✓ Đã trừ số dư & ghi nhận giao dịch SAGA</span>`
+      });
+    }
+
+    showSuccessModal({
+      title: isUpdate ? "Cập Nhật Trạng Thái Thành Công!" : "Thêm Sinh Viên Mới Thành Công!",
+      subtitle: selectedStatus === "PAID"
+        ? `Học phí của sinh viên <strong>${code}</strong> đã chuyển sang trạng thái <strong>ĐÃ NỘP (PAID)</strong> thành công!`
+        : `Hồ sơ học phí của sinh viên <strong>${code}</strong> đã được lưu thành công.`,
+      details: details
+    });
   } catch (err) {
     alert("Thông báo: " + err.message);
   }
@@ -710,6 +779,16 @@ $("formTx").addEventListener("submit", async (e) => {
     }
     closeModal("modalTx");
     await loadAdminData();
+    showSuccessModal({
+      title: isUpdate ? "Cập Nhật Giao Dịch Thành Công!" : "Tạo Giao Dịch Thành Công!",
+      subtitle: `Giao dịch sinh viên <strong>${payload.student_code}</strong> đã được lưu thành công.`,
+      details: [
+        { label: "Mã sinh viên", val: payload.student_code },
+        { label: "Họ tên sinh viên", val: payload.student_name },
+        { label: "Số tiền", val: `<span style="color:#38bdf8; font-weight:700;">${money(payload.amount)}</span>` },
+        { label: "Trạng thái", val: `<strong>${payload.status}</strong>` },
+      ]
+    });
   } catch (err) {
     alert("Lỗi: " + err.message);
   }
