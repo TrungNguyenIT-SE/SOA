@@ -289,6 +289,8 @@ $("btnOpenUserModal").addEventListener("click", () => {
   $("userIdInput").value = "";
   $("userUsername").value = "";
   $("userUsername").disabled = false;
+  const userUsernameLabel = $("userUsernameLabel");
+  if (userUsernameLabel) userUsernameLabel.classList.remove("span-2");
   $("userPasswordWrap").style.display = "flex";
   $("userPassword").value = "Password123@";
   $("userFullName").value = "";
@@ -305,6 +307,8 @@ window.editUser = function (userId) {
   $("userIdInput").value = u.id;
   $("userUsername").value = u.username;
   $("userUsername").disabled = true;
+  const userUsernameLabel = $("userUsernameLabel");
+  if (userUsernameLabel) userUsernameLabel.classList.add("span-2");
   $("userPasswordWrap").style.display = "none";
   $("userFullName").value = u.full_name;
   $("userPhone").value = u.phone || "";

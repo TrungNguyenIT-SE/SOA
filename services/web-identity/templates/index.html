@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1530">
   <title>iBanking — Quản lý & Thanh toán học phí</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/styles.css?v=2.5">
+  <link rel="stylesheet" href="/static/styles.css?v=2.6">
 </head>
 <body>
   <header class="topbar">
@@ -274,7 +274,7 @@
       <form id="formUser">
         <input type="hidden" id="userIdInput">
         <div class="form-row">
-          <label>Tên đăng nhập
+          <label id="userUsernameLabel">Tên đăng nhập
             <input type="text" id="userUsername" required minlength="3">
           </label>
           <label id="userPasswordWrap">Mật khẩu
@@ -294,7 +294,7 @@
             <input type="email" id="userEmail" required>
           </label>
           <label>Số dư khả dụng (VND)
-            <input type="number" id="userBalance" min="0" step="500000" value="10000000">
+            <input type="number" id="userBalance" min="0" step="any" value="10000000">
           </label>
         </div>
         <div class="modal-actions">
@@ -327,7 +327,7 @@
             <input type="text" id="studentTermInput" required value="HK1/2026-2027">
           </label>
           <label>Số tiền học phí (VND)
-            <input type="number" id="studentAmountInput" required min="100000" step="100000" value="1000000">
+            <input type="number" id="studentAmountInput" required min="100000" step="any" value="1000000">
           </label>
         </div>
         <div class="form-row">
@@ -383,7 +383,7 @@
             <input type="text" id="txTerm" required value="HK1/2026-2027">
           </label>
           <label>Số tiền (VND)
-            <input type="number" id="txAmount" required min="100000" step="100000" value="1200000">
+            <input type="number" id="txAmount" required min="100000" step="any" value="1200000">
           </label>
         </div>
         <div class="form-row">
@@ -429,6 +429,6 @@
     <span>© 2026 iBanking Tuition · Service-Oriented Architecture (SOA)</span>
     <span>Bảo mật giao dịch SAGA · OTP · Database-per-service</span>
   </footer>
-  <script src="/static/app.js?v=2.5"></script>
+  <script src="/static/app.js?v=2.6"></script>
 </body>
 </html>
