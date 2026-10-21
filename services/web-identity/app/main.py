@@ -327,6 +327,16 @@ def create_user(body: UserCreate):
     return serialize_user(user, balance=body.balance)
 
 
+@app.get("/api/v1/users/{user_id}", response_model=UserOut, tags=["Người dùng (User)"], summary="Xem thông tin chi tiết một người dùng")
+def get_user_by_id(user_id: int):
+    """Xem thông tin chi tiết một người dùng theo ID"""
+    with SessionLocal.begin() as db:
+        user = db.get(User, user_id)
+        if not user:
+            raise HTTPException(404, detail={"code": "USER_NOT_FOUND", "message": "Không tìm thấy người dùng."})
+        return serialize_user(user)
+
+
 @app.put("/api/v1/users/{user_id}", response_model=UserOut, tags=["Người dùng (User)"], summary="Cập nhật thông tin & số dư người dùng")
 def update_user(user_id: int, body: UserUpdate):
     """Cập nhật thông tin người dùng và số dư"""
