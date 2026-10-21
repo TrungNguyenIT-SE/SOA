@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b1530">
   <title>iBanking — Quản lý & Thanh toán học phí</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/styles.css?v=2.3">
+  <link rel="stylesheet" href="/static/styles.css?v=2.4">
 </head>
 <body>
   <header class="topbar">
@@ -331,7 +331,7 @@
           </label>
         </div>
         <div class="form-row">
-          <label>Trạng thái nộp học phí
+          <label class="span-2">Trạng thái nộp học phí
             <select id="studentStatusInput">
               <option value="UNPAID">Chưa nộp (UNPAID)</option>
               <option value="PAID">Đã nộp (PAID)</option>
@@ -339,7 +339,7 @@
           </label>
         </div>
         <div class="form-row hidden" id="studentPayerGroup">
-          <label>Chọn tài khoản người dùng nộp tiền (Kiểm tra số dư & trừ tiền)
+          <label class="span-2">Chọn tài khoản người dùng nộp tiền (Kiểm tra số dư & trừ tiền)
             <select id="studentPayerInput">
             </select>
             <div id="studentPayerBalanceHint" style="font-size:0.85rem; margin-top:6px; font-weight:500;"></div>
@@ -408,6 +408,6 @@
     <span>© 2026 iBanking Tuition · Service-Oriented Architecture (SOA)</span>
     <span>Bảo mật giao dịch SAGA · OTP · Database-per-service</span>
   </footer>
-  <script src="/static/app.js?v=2.3"></script>
+  <script src="/static/app.js?v=2.4"></script>
 </body>
 </html>

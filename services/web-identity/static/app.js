@@ -19,6 +19,7 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 const money = (value) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(Number(value));
+const formatVND = money;
 const uuid = () => crypto.randomUUID();
 const maskAccount = (value) => value ? `Tài khoản •••• ${String(value).slice(-4)}` : "Tài khoản —";
 
@@ -444,7 +445,7 @@ $("btnOpenStudentModal").addEventListener("click", () => {
 });
 
 
-function updateStudentPayerUI() {
+async function updateStudentPayerUI() {
   const statusInput = $("studentStatusInput");
   const payerGroup = $("studentPayerGroup");
   const payerSelect = $("studentPayerInput");
@@ -452,13 +453,24 @@ function updateStudentPayerUI() {
 
   if (statusInput.value === "PAID") {
     payerGroup.classList.remove("hidden");
+    if (!state.admin.users || state.admin.users.length === 0) {
+      try {
+        state.admin.users = (await api("/api/v1/users")) || [];
+      } catch (err) {
+        console.error("Không thể tải danh sách người dùng cho dropdown:", err);
+      }
+    }
     const currentVal = payerSelect.value;
-    payerSelect.innerHTML = (state.admin.users || []).map(u => {
-      const bal = u.balance !== null && u.balance !== undefined ? formatVND(u.balance) : "0 đ";
-      return `<option value="${u.id}">${u.full_name} (${u.username}) - Số dư: ${bal}</option>`;
-    }).join("");
-    if (currentVal && payerSelect.querySelector(`option[value="${currentVal}"]`)) {
-      payerSelect.value = currentVal;
+    if (state.admin.users && state.admin.users.length > 0) {
+      payerSelect.innerHTML = state.admin.users.map((u) => {
+        const bal = (u.balance !== null && u.balance !== undefined) ? money(u.balance) : "0 đ";
+        return `<option value="${u.id}">${u.full_name} (${u.username}) - Số dư: ${bal}</option>`;
+      }).join("");
+      if (currentVal && payerSelect.querySelector(`option[value="${currentVal}"]`)) {
+        payerSelect.value = currentVal;
+      }
+    } else {
+      payerSelect.innerHTML = `<option value="">(Không tìm thấy người dùng)</option>`;
     }
     updatePayerBalanceHint();
   } else {
