@@ -87,13 +87,6 @@ app = FastAPI(
     title="Đại Học SOA - Cổng Quản Lý & API Đa Ngôn Ngữ",
     version="1.0.0",
     lifespan=lifespan,
-    swagger_ui_parameters={
-        "urls": [
-            {"name": "1. Khoa - Python (FastAPI Gateway & Identity)", "url": "/openapi.json"},
-            {"name": "2. Nguyên - Java (Spring Boot Tuition & OTP)", "url": "/api-docs/tuition"},
-            {"name": "3. Phong - C# (.NET 8 Payment & Transactions)", "url": "/api-docs/payment"},
-        ]
-    },
 )
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
