@@ -51,6 +51,10 @@ services:
 
   web-identity:
     build: ./services/web-identity
+    volumes:
+      - ./services/web-identity/app:/app/app
+      - ./services/web-identity/static:/app/static
+      - ./services/web-identity/templates:/app/templates
     ports:
       - "8001:8000"
     environment:
@@ -106,17 +110,22 @@ services:
       - "8003:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/tuition_db
+      APP_INTERNAL_TOKEN: 
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-soa}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-soa_dev_password}
+      ACCOUNT_SERVICE_URL: http://account:8000
+      PAYMENT_SERVICE_URL: http://payment:8000
     depends_on:
       postgres:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.tuition.rule=PathPrefix(`/api/v1/tuition-invoices`)
+      - traefik.http.routers.tuition.rule=PathPrefix(`/api/v1/tuition-invoices`) || PathPrefix(`/api/v1/students`) || PathPrefix(`/api/v1/otp`)
       - traefik.http.routers.tuition.priority=100
       - traefik.http.services.tuition.loadbalancer.server.port=8000
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
       interval: 10s
       timeout: 3s
       retries: 20
@@ -128,17 +137,10 @@ services:
       - "8004:8000"
     environment:
       <<: *common-env
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/payment_db
-      ACCOUNT_SERVICE_URL: http://account:8000
-      TUITION_SERVICE_URL: http://tuition:8000
-      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/%2F
-      OTP_PEPPER: ${OTP_PEPPER:-dev-only-otp-pepper}
-      OTP_TTL_SECONDS: ${OTP_TTL_SECONDS:-300}
-      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
-      ENABLE_FAULT_INJECTION: ${ENABLE_FAULT_INJECTION:-false}
-      DEMO_EMAIL_1: ${DEMO_EMAIL_1:-payer1@example.com}
-      DEMO_EMAIL_2: ${DEMO_EMAIL_2:-payer2@example.com}
-      DEMO_EMAIL_3: ${DEMO_EMAIL_3:-payer3@example.com}
+      ConnectionStrings__PaymentDb: Host=postgres;Port=5432;Database=payment_db;Username=${POSTGRES_USER:-soa};Password=${POSTGRES_PASSWORD:-soa_dev_password}
+      AccountServiceUrl: http://account:8000
+      TuitionServiceUrl: http://tuition:8000
+      InternalToken: ${INTERNAL_API_TOKEN:-dev-only-internal-token}
     depends_on:
       postgres:
         condition: service_healthy
@@ -146,15 +148,13 @@ services:
         condition: service_healthy
       tuition:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.payment.rule=PathPrefix(`/api/v1/payments`)
+      - traefik.http.routers.payment.rule=PathPrefix(`/api/v1/transactions`)
       - traefik.http.routers.payment.priority=100
       - traefik.http.services.payment.loadbalancer.server.port=8000
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
       interval: 10s
       timeout: 3s
       retries: 20

@@ -1,10 +1,15 @@
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Stage 1: Build and publish .NET app
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+WORKDIR /src
+COPY PaymentService.csproj .
+RUN dotnet restore
 COPY . .
-EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+RUN dotnet publish -c Release -o /app/publish
 
+# Stage 2: Runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+WORKDIR /app
+COPY --from=build /app/publish .
+EXPOSE 8000
+ENV ASPNETCORE_URLS=http://+:8000
+ENTRYPOINT ["dotnet", "PaymentService.dll"]

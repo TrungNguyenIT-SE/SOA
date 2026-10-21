@@ -7,6 +7,7 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import BigInteger, CheckConstraint, DateTime, ForeignKey, String, UniqueConstraint, create_engine, select, text, update
 from sqlalchemy.exc import IntegrityError
@@ -89,11 +90,20 @@ class UserClaims(BaseModel):
     full_name: str = ""
 
 
-def current_user(authorization: Annotated[str | None, Header()] = None) -> UserClaims:
-    if not authorization or not authorization.startswith("Bearer "):
+bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def current_user(
+    cred: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
+    authorization: Annotated[str | None, Header()] = None,
+) -> UserClaims:
+    raw_token = cred.credentials if (cred and cred.credentials) else None
+    if not raw_token and authorization and authorization.startswith("Bearer "):
+        raw_token = authorization[7:].strip()
+    if not raw_token:
         raise HTTPException(401, detail={"code": "UNAUTHORIZED", "message": "Thiếu access token."})
     try:
-        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(raw_token, JWT_SECRET, algorithms=["HS256"])
         if payload.get("type") != "access":
             raise jwt.InvalidTokenError("wrong token type")
         return UserClaims(
@@ -150,7 +160,20 @@ class MoneyCommand(BaseModel):
 def get_account_for_user(db: Session, user_id: int) -> Account:
     account = db.scalar(select(Account).where(Account.user_id == user_id))
     if not account:
-        raise HTTPException(404, detail={"code": "ACCOUNT_NOT_FOUND", "message": "Không tìm thấy tài khoản."})
+        try:
+            account = Account(
+                user_id=user_id,
+                account_number=f"9704{user_id:08d}",
+                available_balance=10_000_000,
+            )
+            db.add(account)
+            db.commit()
+            db.refresh(account)
+        except Exception:
+            db.rollback()
+            account = db.scalar(select(Account).where(Account.user_id == user_id))
+            if not account:
+                raise HTTPException(404, detail={"code": "ACCOUNT_NOT_FOUND", "message": "Không tìm thấy tài khoản."})
     return account
 
 
@@ -162,25 +185,51 @@ async def http_error_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={**detail, "path": request.url.path})
 
 
-@app.get("/health")
+@app.get("/health", tags=["Hệ thống (Health)"], summary="Kiểm tra trạng thái Service")
 def health():
     return {"status": "ok", "service": "account"}
 
 
-@app.get("/ready")
+@app.get("/ready", tags=["Hệ thống (Health)"], summary="Kiểm tra kết nối Database Account")
 def ready():
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     return {"status": "ready", "service": "account"}
 
 
-@app.get("/api/v1/accounts/me", response_model=AccountOut)
+class DepositCommand(BaseModel):
+    account_number: str
+    amount: int = Field(gt=0)
+
+
+@app.get("/api/v1/accounts", response_model=list[AccountOut], tags=["Tài khoản & Số dư"], summary="Xem danh sách toàn bộ tài khoản ngân hàng")
+def list_accounts():
+    """Xem danh sách toàn bộ tài khoản ngân hàng"""
+    with SessionLocal() as db:
+        accounts = db.scalars(select(Account).order_by(Account.id)).all()
+        return [AccountOut.model_validate(acc) for acc in accounts]
+
+
+@app.post("/api/v1/accounts/deposit", response_model=AccountOut, tags=["Tài khoản & Số dư"], summary="Nạp thêm tiền vào tài khoản ngân hàng")
+def deposit(command: DepositCommand):
+    """Nạp thêm tiền vào tài khoản"""
+    with SessionLocal.begin() as db:
+        account = db.scalar(select(Account).where(Account.account_number == command.account_number.strip()))
+        if not account:
+            raise HTTPException(404, detail={"code": "ACCOUNT_NOT_FOUND", "message": "Không tìm thấy số tài khoản."})
+        account.available_balance += command.amount
+        account.version += 1
+        db.flush()
+        return AccountOut.model_validate(account)
+
+
+@app.get("/api/v1/accounts/me", response_model=AccountOut, tags=["Tài khoản & Số dư"], summary="Xem số dư khả dụng tài khoản đăng nhập")
 def my_account(user: Annotated[UserClaims, Depends(current_user)]):
     with SessionLocal() as db:
         return get_account_for_user(db, user.user_id)
 
 
-@app.get("/api/v1/accounts/me/transactions", response_model=PageOut)
+@app.get("/api/v1/accounts/me/transactions", response_model=PageOut, tags=["Tài khoản & Số dư"], summary="Xem lịch sử giao dịch (Ledger)")
 def my_transactions(
     user: Annotated[UserClaims, Depends(current_user)],
     page: int = Query(1, ge=1),
@@ -218,7 +267,21 @@ def account_by_user(user_id: int):
         return get_account_for_user(db, user_id)
 
 
-@app.post("/internal/v1/accounts/{account_id}/debits", response_model=AccountOut, dependencies=[Depends(require_internal)])
+class BalanceUpdate(BaseModel):
+    available_balance: int = Field(ge=0)
+
+
+@app.put("/internal/v1/accounts/by-user/{user_id}/balance", response_model=AccountOut, dependencies=[Depends(require_internal)])
+def update_balance_by_user(user_id: int, body: BalanceUpdate):
+    with SessionLocal.begin() as db:
+        account = get_account_for_user(db, user_id)
+        account.available_balance = body.available_balance
+        account.version += 1
+        db.flush()
+        return account
+
+
+@app.post("/internal/v1/accounts/{account_id}/debits", response_model=AccountOut, dependencies=[Depends(require_internal)], tags=["Nội bộ (Saga)"], summary="Trừ tiền tài khoản nguyên tử có kiểm tra số dư")
 def debit(account_id: uuid.UUID, command: MoneyCommand):
     try:
         with SessionLocal.begin() as db:
@@ -265,7 +328,7 @@ def debit(account_id: uuid.UUID, command: MoneyCommand):
         raise
 
 
-@app.post("/internal/v1/accounts/{account_id}/compensating-credits", response_model=AccountOut, dependencies=[Depends(require_internal)])
+@app.post("/internal/v1/accounts/{account_id}/compensating-credits", response_model=AccountOut, dependencies=[Depends(require_internal)], tags=["Nội bộ (Saga)"], summary="Hoàn tiền bồi hoàn khi Saga thất bại")
 def compensate(account_id: uuid.UUID, command: MoneyCommand):
     with SessionLocal.begin() as db:
         credit = db.scalar(select(LedgerEntry).where(LedgerEntry.payment_id == command.payment_id, LedgerEntry.entry_type == "COMPENSATING_CREDIT"))

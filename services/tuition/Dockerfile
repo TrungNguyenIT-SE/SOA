@@ -1,10 +1,13 @@
-FROM python:3.12-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+# Stage 1: Build JAR using Maven
+FROM maven:3.9-eclipse-temurin-17-alpine AS build
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+COPY pom.xml .
+COPY src ./src
+RUN mvn clean package -DskipTests
 
+# Stage 2: Runtime image
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+EXPOSE 8000
+ENTRYPOINT ["java", "-jar", "app.jar"]

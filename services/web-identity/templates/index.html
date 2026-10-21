@@ -4,23 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1530">
-  <title>iBanking — Thanh toán học phí</title>
+  <title>iBanking — Quản lý & Thanh toán học phí</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
-  <link rel="stylesheet" href="/static/styles.css">
+  <link rel="stylesheet" href="/static/styles.css?v=2.3">
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="/" aria-label="Trang chủ iBanking">
       <span class="brand-mark" aria-hidden="true"><img src="/static/logo.svg" alt=""></span>
-      <span><strong>iBanking</strong><small>Digital Banking</small></span>
+      <span><strong>iBanking</strong><small>Digital Banking & SOA Portal</small></span>
     </a>
     <div class="topbar-actions">
       <span class="secure-status"><i></i>Kết nối an toàn</span>
-      <button id="logoutButton" class="button button-quiet hidden" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>Đăng xuất</button>
+      <span id="adminBadge" class="admin-badge hidden">👑 QUẢN TRỊ VIÊN</span>
+      <div id="navGroup" class="nav-group hidden">
+        <button id="navPayerTab" class="nav-tab active" type="button">💳 iBanking Cá Nhân</button>
+        <button id="navAdminTab" class="nav-tab" type="button">📊 Quản Trị Admin</button>
+      </div>
+      <button id="logoutButton" class="button button-quiet hidden" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+        Đăng xuất
+      </button>
     </div>
   </header>
 
   <main class="shell">
+    <!-- View 1: Đăng nhập -->
     <section id="loginView" class="auth-layout" aria-labelledby="loginTitle">
       <div class="auth-intro">
         <span class="section-kicker"><i></i>Ngân hàng số an toàn</span>
@@ -33,23 +42,53 @@
       </div>
       <div class="auth-side">
         <form id="loginForm" class="panel auth-card">
-          <div class="card-heading"><span class="heading-icon"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg></span><div><p class="section-kicker">Chào mừng trở lại</p><h2 id="loginTitle">Đăng nhập tài khoản</h2></div></div>
-          <label for="username">Tên đăng nhập<span class="input-wrap"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg><input id="username" name="username" autocomplete="username" required value="hoangthaidangkhoa"></span></label>
-          <label for="password">Mật khẩu<span class="input-wrap"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg><input id="password" name="password" type="password" autocomplete="current-password" required value="Password123@"></span></label>
-          <button class="button button-primary" type="submit"><span>Đăng nhập an toàn</span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          <div class="card-heading">
+            <span class="heading-icon"><svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg></span>
+            <div><p class="section-kicker">Chào mừng trở lại</p><h2 id="loginTitle">Đăng nhập tài khoản</h2></div>
+          </div>
+          <label for="username">Tên đăng nhập
+            <span class="input-wrap">
+              <svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg>
+              <input id="username" name="username" autocomplete="username" required value="admin">
+            </span>
+          </label>
+          <label for="password">Mật khẩu
+            <span class="input-wrap">
+              <svg viewBox="0 0 24 24"><path d="M7 10V8a5 5 0 0 1 10 0v2M6 10h12v11H6z"/></svg>
+              <input id="password" name="password" type="password" autocomplete="current-password" required value="Password123@">
+            </span>
+          </label>
+          <button class="button button-primary" type="submit">
+            <span>Đăng nhập an toàn</span>
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
           <p id="loginError" class="message error hidden" role="alert"></p>
         </form>
       </div>
     </section>
 
+    <!-- View 2: Người nộp iBanking Cá Nhân -->
     <section id="appView" class="app-view hidden" aria-labelledby="welcomeName">
       <div class="welcome-row">
-        <div><p class="section-kicker">Tổng quan tài khoản</p><h1 id="welcomeName">Xin chào</h1><p class="welcome-subtitle">Quản lý và thanh toán học phí an toàn tại một nơi.</p></div>
+        <div>
+          <p class="section-kicker">Tổng quan tài khoản</p>
+          <h1 id="welcomeName">Xin chào</h1>
+          <p class="welcome-subtitle">Quản lý và thanh toán học phí an toàn tại một nơi.</p>
+        </div>
       </div>
 
       <div class="summary-grid">
-        <article class="balance-card"><div class="balance-top"><span>Số dư khả dụng</span><span class="currency-chip">VND</span></div><strong id="availableBalance">—</strong><div class="balance-bottom"><span id="accountNumber">Tài khoản —</span><span class="card-dots">••••</span></div><div class="balance-orb one"></div><div class="balance-orb two"></div></article>
-        <article class="panel profile-card"><div class="profile-icon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg></div><div><span>Thông tin liên hệ</span><strong id="profileEmail">—</strong><small id="profilePhone">—</small></div><span class="verified"><svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l2.5 2.5L16 9"/></svg>Đã xác thực</span></article>
+        <article class="balance-card">
+          <div class="balance-top"><span>Số dư khả dụng</span><span class="currency-chip">VND</span></div>
+          <strong id="availableBalance">—</strong>
+          <div class="balance-bottom"><span id="accountNumber">Tài khoản —</span><span class="card-dots">••••</span></div>
+          <div class="balance-orb one"></div><div class="balance-orb two"></div>
+        </article>
+        <article class="panel profile-card">
+          <div class="profile-icon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></svg></div>
+          <div><span>Thông tin liên hệ</span><strong id="profileEmail">—</strong><small id="profilePhone">—</small></div>
+          <span class="verified"><svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12l2.5 2.5L16 9"/></svg>Đã xác thực</span>
+        </article>
       </div>
 
       <div class="content-grid">
@@ -89,8 +128,286 @@
         </aside>
       </div>
     </section>
+
+    <!-- View 3: Cổng Quản Trị Admin Portal -->
+    <section id="adminView" class="admin-view hidden" aria-labelledby="adminTitle">
+      <div class="welcome-row">
+        <div>
+          <p class="section-kicker">Kiến trúc Hướng Dịch vụ SOA</p>
+          <h1 id="adminTitle">Cổng Quản Trị Trung Tâm</h1>
+          <p class="welcome-subtitle">Giám sát số liệu, quản trị Người Dùng, Sinh Viên và Lịch Sử Giao Dịch toàn hệ thống.</p>
+        </div>
+        <div class="admin-actions-bar">
+          <button id="btnRefreshAdmin" class="button button-secondary" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Làm mới số liệu
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="admin-stats-grid">
+        <article class="stat-card">
+          <div class="stat-icon users"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div><span>Tổng Người Dùng</span><strong id="statUsers">0</strong></div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-icon students"><svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+          <div><span>Tổng Sinh Viên</span><strong id="statStudents">0</strong></div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-icon txs"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div><span>Tổng Giao Dịch</span><strong id="statTransactions">0</strong></div>
+        </article>
+        <article class="stat-card revenue">
+          <div class="stat-icon money"><svg viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+          <div><span>Học Phí Đã Thu</span><strong id="statRevenue">0 VND</strong></div>
+        </article>
+      </div>
+
+      <!-- Main Management Container with Sub-tabs -->
+      <div class="panel admin-panel">
+        <div class="admin-tabs-nav">
+          <button id="subTabUsers" class="admin-tab active" type="button">👥 Quản Lý Người Dùng (Users)</button>
+          <button id="subTabStudents" class="admin-tab" type="button">🎓 Quản Lý Sinh Viên (Students)</button>
+          <button id="subTabTxs" class="admin-tab" type="button">💳 Lịch Sử Giao Dịch (Transactions)</button>
+        </div>
+
+        <!-- Section: Users -->
+        <div id="sectionUsers" class="admin-section">
+          <div class="section-toolbar">
+            <input type="text" id="searchUser" class="search-input" placeholder="🔍 Tìm kiếm theo username, họ tên, email...">
+            <button id="btnOpenUserModal" class="button button-primary" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              + Thêm Người Dùng
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tài khoản</th>
+                  <th>Họ và tên</th>
+                  <th>Email</th>
+                  <th>Số điện thoại</th>
+                  <th>Số dư</th>
+                  <th class="text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody">
+                <tr><td colspan="7" class="text-center">Đang tải dữ liệu...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section: Students -->
+        <div id="sectionStudents" class="admin-section hidden">
+          <div class="section-toolbar">
+            <input type="text" id="searchStudent" class="search-input" placeholder="🔍 Tìm kiếm theo MSSV, họ tên...">
+            <button id="btnOpenStudentModal" class="button button-primary" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              + Thêm Sinh Viên & Học Phí
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mã SV (MSSV)</th>
+                  <th>Họ và tên</th>
+                  <th>Học kỳ</th>
+                  <th>Số tiền</th>
+                  <th>Trạng thái</th>
+                  <th class="text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="studentTableBody">
+                <tr><td colspan="6" class="text-center">Đang tải dữ liệu...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section: Transactions -->
+        <div id="sectionTxs" class="admin-section hidden">
+          <div class="section-toolbar">
+            <input type="text" id="searchTx" class="search-input" placeholder="🔍 Tìm kiếm giao dịch theo mã, người nộp, MSSV...">
+            <button id="btnOpenTxModal" class="button button-primary" type="button">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              + Tạo Giao Dịch Mới
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Mã GD</th>
+                  <th>Người nộp</th>
+                  <th>Mã SV</th>
+                  <th>Học kỳ</th>
+                  <th>Số tiền</th>
+                  <th>Trạng thái</th>
+                  <th>Thời gian</th>
+                  <th class="text-right">Hành động</th>
+                </tr>
+              </thead>
+              <tbody id="txTableBody">
+                <tr><td colspan="8" class="text-center">Đang tải dữ liệu...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
-  <footer><span>© 2026 iBanking Tuition</span><span>Giao dịch được bảo vệ bằng xác thực OTP</span></footer>
-  <script src="/static/app.js"></script>
+
+  <!-- MODALS -->
+  <!-- Modal 1: Người Dùng (User) -->
+  <div id="modalUser" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalUserTitle">Thêm Người Dùng Mới</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalUser')">&times;</button>
+      </div>
+      <form id="formUser">
+        <input type="hidden" id="userIdInput">
+        <div class="form-row">
+          <label>Tên đăng nhập
+            <input type="text" id="userUsername" required minlength="3">
+          </label>
+          <label id="userPasswordWrap">Mật khẩu
+            <input type="password" id="userPassword" minlength="6" value="Password123@">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Họ và tên
+            <input type="text" id="userFullName" required>
+          </label>
+          <label>Số điện thoại
+            <input type="text" id="userPhone" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Email
+            <input type="email" id="userEmail" required>
+          </label>
+          <label>Số dư khả dụng (VND)
+            <input type="number" id="userBalance" min="0" step="500000" value="10000000">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button button-quiet" onclick="closeModal('modalUser')">Hủy</button>
+          <button type="submit" class="button button-primary">Lưu Thay Đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Sinh Viên (Student) -->
+  <div id="modalStudent" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalStudentTitle">Thêm Sinh Viên & Học Phí</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalStudent')">&times;</button>
+      </div>
+      <form id="formStudent">
+        <div class="form-row">
+          <label>Mã số sinh viên (MSSV)
+            <input type="text" id="studentCodeInput" required minlength="3" maxlength="20" placeholder="52400099">
+            <div id="studentCodeHint" style="display:none; font-size:0.82rem; margin-top:6px; line-height:1.4;"></div>
+          </label>
+          <label>Họ và tên sinh viên
+            <input type="text" id="studentNameInput" required placeholder="Nguyễn Văn An">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Học kỳ
+            <input type="text" id="studentTermInput" required value="HK1/2026-2027">
+          </label>
+          <label>Số tiền học phí (VND)
+            <input type="number" id="studentAmountInput" required min="100000" step="100000" value="1000000">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Trạng thái nộp học phí
+            <select id="studentStatusInput">
+              <option value="UNPAID">Chưa nộp (UNPAID)</option>
+              <option value="PAID">Đã nộp (PAID)</option>
+            </select>
+          </label>
+        </div>
+        <div class="form-row hidden" id="studentPayerGroup">
+          <label>Chọn tài khoản người dùng nộp tiền (Kiểm tra số dư & trừ tiền)
+            <select id="studentPayerInput">
+            </select>
+            <div id="studentPayerBalanceHint" style="font-size:0.85rem; margin-top:6px; font-weight:500;"></div>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button button-quiet" onclick="closeModal('modalStudent')">Hủy</button>
+          <button type="submit" class="button button-primary">Lưu Hồ Sơ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 3: Giao Dịch (Transaction) -->
+  <div id="modalTx" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modalTxTitle">Tạo Giao Dịch Thanh Toán Mới</h3>
+        <button type="button" class="modal-close" onclick="closeModal('modalTx')">&times;</button>
+      </div>
+      <form id="formTx">
+        <input type="hidden" id="txIdInput">
+        <div class="form-row">
+          <label>Họ tên người nộp
+            <input type="text" id="txPayerName" required value="Hoàng Thái Đăng Khoa">
+          </label>
+          <label>Email người nộp
+            <input type="email" id="txPayerEmail" required value="dangkhoa040706@gmail.com">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Mã sinh viên (MSSV)
+            <input type="text" id="txStudentCode" required value="52400001">
+          </label>
+          <label>Tên sinh viên
+            <input type="text" id="txStudentName" required value="Nguyễn Minh Anh">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Học kỳ
+            <input type="text" id="txTerm" required value="HK1/2026-2027">
+          </label>
+          <label>Số tiền (VND)
+            <input type="number" id="txAmount" required min="100000" step="100000" value="1200000">
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="span-2">Trạng thái giao dịch
+            <select id="txStatus">
+              <option value="SUCCEEDED">SUCCEEDED (Thành công)</option>
+              <option value="COMPENSATED">COMPENSATED (Đã hoàn tiền / Rollback)</option>
+              <option value="OTP_PENDING">OTP_PENDING (Chờ xác thực OTP)</option>
+              <option value="CANCELLED">CANCELLED (Đã hủy)</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="button button-quiet" onclick="closeModal('modalTx')">Hủy</button>
+          <button type="submit" class="button button-primary">Lưu Giao Dịch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <span>© 2026 iBanking Tuition · Service-Oriented Architecture (SOA)</span>
+    <span>Bảo mật giao dịch SAGA · OTP · Database-per-service</span>
+  </footer>
+  <script src="/static/app.js?v=2.3"></script>
 </body>
 </html>
