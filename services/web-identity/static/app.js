@@ -197,6 +197,135 @@ window.showSuccessModal = function ({ title = "Thành Công!", subtitle = "", de
   openModal("modalSuccess");
 };
 
+// Toast Notifications System
+window.showToast = function (message, type = "success", duration = 3500) {
+  const container = $("toastContainer");
+  if (!container) return;
+
+  const item = document.createElement("div");
+  item.className = `toast-item ${type}`;
+
+  const iconMap = {
+    success: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    error: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+    warning: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    info: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+  };
+
+  item.innerHTML = `
+    <div class="toast-icon">${iconMap[type] || iconMap.info}</div>
+    <div class="toast-text">${message}</div>
+    <button type="button" class="toast-close" aria-label="Đóng">&times;</button>
+  `;
+
+  const closeBtn = item.querySelector(".toast-close");
+  const dismiss = () => {
+    item.classList.add("hide");
+    setTimeout(() => {
+      if (item.parentNode) item.parentNode.removeChild(item);
+    }, 250);
+  };
+
+  closeBtn.addEventListener("click", dismiss);
+  container.appendChild(item);
+
+  if (duration > 0) {
+    setTimeout(dismiss, duration);
+  }
+};
+
+// Custom Confirm Modal (returns Promise<boolean>)
+let confirmModalResolver = null;
+
+window.showConfirmModal = function ({
+  title = "Xác Nhận Thao Tác",
+  subtitle = "Bạn có chắc chắn muốn thực hiện hành động này?",
+  details = "",
+  confirmText = "Xác Nhận",
+  cancelText = "Hủy Bỏ",
+  isDanger = false,
+}) {
+  return new Promise((resolve) => {
+    confirmModalResolver = resolve;
+    const titleEl = $("modalConfirmTitle");
+    const subEl = $("modalConfirmSubtitle");
+    const detEl = $("modalConfirmDetails");
+    const iconEl = $("modalConfirmIcon");
+    const okBtn = $("modalConfirmOkBtn");
+    const cancelBtn = $("modalConfirmCancelBtn");
+
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) subEl.innerHTML = subtitle;
+    if (detEl) {
+      if (details) {
+        detEl.innerHTML = details;
+        detEl.classList.remove("hidden");
+      } else {
+        detEl.classList.add("hidden");
+      }
+    }
+
+    if (iconEl) {
+      iconEl.className = isDanger ? "modal-confirm-icon danger" : "modal-confirm-icon";
+    }
+
+    if (okBtn) {
+      okBtn.textContent = confirmText;
+      okBtn.className = isDanger ? "button button-danger" : "button button-primary";
+    }
+
+    if (cancelBtn) {
+      cancelBtn.textContent = cancelText;
+    }
+
+    openModal("modalConfirm");
+  });
+};
+
+if ($("modalConfirmOkBtn")) {
+  $("modalConfirmOkBtn").addEventListener("click", () => {
+    closeModal("modalConfirm");
+    if (confirmModalResolver) {
+      confirmModalResolver(true);
+      confirmModalResolver = null;
+    }
+  });
+}
+
+if ($("modalConfirmCancelBtn")) {
+  $("modalConfirmCancelBtn").addEventListener("click", () => {
+    closeModal("modalConfirm");
+    if (confirmModalResolver) {
+      confirmModalResolver(false);
+      confirmModalResolver = null;
+    }
+  });
+}
+
+// Custom Error / Alert Modal
+window.showErrorModal = function ({
+  title = "Thông Báo Lỗi",
+  subtitle = "Đã xảy ra sự cố trong quá trình xử lý.",
+  details = "",
+}) {
+  const titleEl = $("modalErrorTitle");
+  const subEl = $("modalErrorSubtitle");
+  const detailsEl = $("modalErrorDetails");
+
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.innerHTML = subtitle;
+  if (detailsEl) {
+    if (details) {
+      detailsEl.innerHTML = details;
+      detailsEl.classList.remove("hidden");
+    } else {
+      detailsEl.classList.add("hidden");
+      detailsEl.innerHTML = "";
+    }
+  }
+  openModal("modalError");
+};
+
 // Admin Sub-tabs switching
 function switchAdminSubTab(tabName) {
   state.admin.activeTab = tabName;
@@ -212,7 +341,14 @@ function switchAdminSubTab(tabName) {
 $("subTabUsers").addEventListener("click", () => switchAdminSubTab("users"));
 $("subTabStudents").addEventListener("click", () => switchAdminSubTab("students"));
 $("subTabTxs").addEventListener("click", () => switchAdminSubTab("txs"));
-$("btnRefreshAdmin").addEventListener("click", loadAdminData);
+$("btnRefreshAdmin").addEventListener("click", async () => {
+  try {
+    await loadAdminData();
+    showToast("✓ Đã làm mới số liệu toàn hệ thống", "info");
+  } catch (err) {
+    showToast("Không thể làm mới: " + err.message, "error");
+  }
+});
 
 async function loadAdminData() {
   await Promise.all([
@@ -349,17 +485,36 @@ $("formUser").addEventListener("submit", async (e) => {
       ]
     });
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    showErrorModal({
+      title: "Lỗi Lưu Người Dùng",
+      subtitle: "Không thể lưu thông tin người dùng vào hệ thống.",
+      details: err.message,
+    });
   }
 });
 
 window.deleteUser = async function (userId) {
-  if (!confirm(`Bạn có chắc muốn xóa người dùng ID #${userId} không?`)) return;
+  const user = (state.admin.users || []).find((u) => u.id === userId);
+  const userName = user ? `${user.full_name} (${user.username})` : `ID #${userId}`;
+  const ok = await showConfirmModal({
+    title: "Xác Nhận Xóa Người Dùng",
+    subtitle: `Bạn có chắc chắn muốn xóa người dùng <strong>${userName}</strong> không?`,
+    details: "Cảnh báo: Hành động này sẽ xóa người dùng và tài khoản ví liên quan. Không thể hoàn tác!",
+    confirmText: "Xác Nhận Xóa",
+    isDanger: true,
+  });
+  if (!ok) return;
+
   try {
     await api(`/api/v1/users/${userId}`, { method: "DELETE" });
     await loadAdminData();
+    showToast(`✓ Đã xóa người dùng ${userName} thành công`, "success");
   } catch (err) {
-    alert("Không thể xóa: " + err.message);
+    showErrorModal({
+      title: "Không Thể Xóa Người Dùng",
+      subtitle: "Hệ thống từ chối xóa người dùng này.",
+      details: err.message,
+    });
   }
 };
 
@@ -576,7 +731,11 @@ $("formStudent").addEventListener("submit", async (e) => {
   const selectedStatus = $("studentStatusInput") ? $("studentStatusInput").value : "UNPAID";
 
   if (!isUpdate && checkDuplicateTerm()) {
-    alert(`Thông báo: Mã sinh viên ${code} đã có hồ sơ học phí cho học kỳ "${term}". Không được tạo trùng mã sinh viên cho cùng một học kỳ!`);
+    showErrorModal({
+      title: "Trùng Hồ Sơ Học Phí",
+      subtitle: `Mã sinh viên <strong>${code}</strong> đã có hồ sơ học phí cho học kỳ <strong>"${term}"</strong>!`,
+      details: "Hệ thống quy định không được tạo trùng mã sinh viên cho cùng một học kỳ. Vui lòng kiểm tra lại danh sách hoặc chọn học kỳ khác.",
+    });
     return;
   }
 
@@ -587,11 +746,14 @@ $("formStudent").addEventListener("submit", async (e) => {
     payerUserId = payerSelect ? parseInt(payerSelect.value, 10) : null;
     const user = (state.admin.users || []).find(u => u.id === payerUserId);
     if (user && (user.balance || 0) < amount) {
-      alert(`Thông báo: Người dùng "${user.full_name}" không đủ số dư để nộp học phí!\n` +
-            `- Học phí cần nộp: ${formatVND(amount)}\n` +
-            `- Số dư hiện tại: ${formatVND(user.balance || 0)}\n` +
-            `- Còn thiếu: ${formatVND(amount - (user.balance || 0))}\n\n` +
-            `Vui lòng nạp thêm tiền cho người dùng hoặc chọn tài khoản khác.`);
+      showErrorModal({
+        title: "Tài Khoản Không Đủ Số Dư",
+        subtitle: `Người dùng <strong>${user.full_name}</strong> không đủ tiền để nộp học phí!`,
+        details: `• Học phí cần nộp: <strong>${formatVND(amount)}</strong>\n` +
+                 `• Số dư hiện tại: <strong>${formatVND(user.balance || 0)}</strong>\n` +
+                 `• Còn thiếu: <strong style="color:#ef4444;">${formatVND(amount - (user.balance || 0))}</strong>\n\n` +
+                 `Vui lòng nạp thêm tiền cho người dùng hoặc chọn tài khoản khác có đủ số dư.`,
+      });
       return;
     }
   }
@@ -655,17 +817,36 @@ $("formStudent").addEventListener("submit", async (e) => {
       details: details
     });
   } catch (err) {
-    alert("Thông báo: " + err.message);
+    showErrorModal({
+      title: "Lỗi Lưu Hồ Sơ Sinh Viên",
+      subtitle: "Không thể lưu thông tin sinh viên hoặc cập nhật học phí.",
+      details: err.message,
+    });
   }
 });
 
 window.deleteStudent = async function (code) {
-  if (!confirm(`Bạn có chắc muốn xóa sinh viên ${code} và toàn bộ hóa đơn liên quan?`)) return;
+  const student = (state.admin.students || []).find((s) => s.student_code === code);
+  const studentInfo = student ? `${student.student_code} - ${student.student_name}` : code;
+  const ok = await showConfirmModal({
+    title: "Xác Nhận Xóa Sinh Viên",
+    subtitle: `Bạn có chắc muốn xóa sinh viên <strong>${studentInfo}</strong> và toàn bộ hóa đơn liên quan?`,
+    details: "Cảnh báo: Dữ liệu học phí và sinh viên sẽ bị gỡ bỏ khỏi cơ sở dữ liệu. Không thể hoàn tác!",
+    confirmText: "Xác Nhận Xóa",
+    isDanger: true,
+  });
+  if (!ok) return;
+
   try {
     await api(`/api/v1/students/${code}`, { method: "DELETE" });
     await loadAdminData();
+    showToast(`✓ Đã xóa sinh viên ${code} thành công`, "success");
   } catch (err) {
-    alert("Không thể xóa: " + err.message);
+    showErrorModal({
+      title: "Không Thể Xóa Sinh Viên",
+      subtitle: "Đã xảy ra lỗi khi xóa sinh viên khỏi hệ thống.",
+      details: err.message,
+    });
   }
 };
 
@@ -794,17 +975,35 @@ $("formTx").addEventListener("submit", async (e) => {
       ]
     });
   } catch (err) {
-    alert("Lỗi: " + err.message);
+    showErrorModal({
+      title: "Lỗi Lưu Giao Dịch",
+      subtitle: "Không thể lưu thông tin giao dịch.",
+      details: err.message,
+    });
   }
 });
 
 window.deleteTx = async function (txId) {
-  if (!confirm(`Bạn có chắc muốn xóa vĩnh viễn giao dịch ${txId.slice(0, 8).toUpperCase()}?`)) return;
+  const shortId = txId.slice(0, 8).toUpperCase();
+  const ok = await showConfirmModal({
+    title: "Xác Nhận Xóa Giao Dịch",
+    subtitle: `Bạn có chắc chắn muốn xóa vĩnh viễn giao dịch <strong>#${shortId}</strong>?`,
+    details: "Cảnh báo: Dữ liệu giao dịch này sẽ bị xóa khỏi lịch sử thanh toán. Không thể hoàn tác!",
+    confirmText: "Xác Nhận Xóa",
+    isDanger: true,
+  });
+  if (!ok) return;
+
   try {
     await api(`/api/v1/transactions/${txId}`, { method: "DELETE" });
     await loadAdminData();
+    showToast(`✓ Đã xóa giao dịch #${shortId} thành công`, "success");
   } catch (err) {
-    alert("Không thể xóa: " + err.message);
+    showErrorModal({
+      title: "Không Thể Xóa Giao Dịch",
+      subtitle: "Hệ thống từ chối xóa giao dịch này.",
+      details: err.message,
+    });
   }
 };
 
@@ -856,6 +1055,11 @@ $("lookupForm").addEventListener("submit", async (event) => {
   } catch (error) {
     $("tuitionCard").classList.add("hidden");
     showMessage(error.message);
+    showErrorModal({
+      title: "Không Tìm Thấy Sinh Viên",
+      subtitle: `Không tìm thấy hồ sơ học phí cho mã sinh viên: <strong>${$("studentCode").value.trim().toUpperCase()}</strong>.`,
+      details: "Vui lòng kiểm tra lại mã số sinh viên (MSSV) hoặc liên hệ phòng đào tạo / quản trị viên để cập nhật học phí.",
+    });
   } finally {
     setLoading(submitButton, false);
   }
@@ -901,8 +1105,14 @@ $("createPaymentButton").addEventListener("click", async () => {
     startCountdown(state.payment.otp_expires_at);
     startResendCooldown(60);
     showMessage(`Mã OTP đã được gửi đến email ${userEmail}. (Demo OTP: ${otpRes.otp_code})`, "success");
+    showToast(`✓ Mã OTP đã được gửi đến email ${userEmail}. (Demo: ${otpRes.otp_code})`, "success", 6000);
   } catch (error) {
     showMessage(error.message);
+    showErrorModal({
+      title: "Lỗi Tạo Giao Dịch",
+      subtitle: "Không thể gửi mã xác thực OTP.",
+      details: error.message,
+    });
     setLoading($("createPaymentButton"), false);
   }
 });
@@ -998,8 +1208,14 @@ $("otpForm").addEventListener("submit", async (event) => {
       status: "SUCCEEDED",
       completed_at: new Date().toISOString(),
     });
+    showToast(`✓ Thanh toán học phí thành công cho sinh viên ${state.tuition.student_code}!`, "success");
   } catch (error) {
     showMessage(error.message);
+    showErrorModal({
+      title: "Thanh Toán Thất Bại",
+      subtitle: "Không thể hoàn tất giao dịch thanh toán học phí.",
+      details: error.message,
+    });
   } finally {
     setLoading(button, false);
   }
@@ -1025,8 +1241,14 @@ $("resendOtpButton").addEventListener("click", async () => {
     startCountdown(state.payment.otp_expires_at);
     startResendCooldown(60);
     showMessage(`Mã OTP mới đã được gửi tới email của bạn. (Demo OTP: ${otpRes.otp_code})`, "success");
+    showToast(`✓ Mã OTP mới đã được gửi tới email. (Demo: ${otpRes.otp_code})`, "success", 6000);
   } catch (error) {
     showMessage(error.message);
+    showErrorModal({
+      title: "Lỗi Gửi Lại OTP",
+      subtitle: "Không thể cấp lại mã xác thực OTP.",
+      details: error.message,
+    });
     setLoading(button, false);
     if (error.code === "OTP_RESEND_COOLDOWN") startResendCooldown(60);
   }
@@ -1048,7 +1270,19 @@ $("newPaymentButton").addEventListener("click", () => {
   clearMessage();
 });
 
-$("logoutButton").addEventListener("click", logout);
+$("logoutButton").addEventListener("click", async () => {
+  const ok = await showConfirmModal({
+    title: "Đăng Xuất",
+    subtitle: "Bạn có chắc chắn muốn đăng xuất khỏi tài khoản không?",
+    details: "Phiên làm việc bảo mật hiện tại của bạn sẽ kết thúc.",
+    confirmText: "Đăng Xuất",
+    cancelText: "Ở Lại",
+    isDanger: false,
+  });
+  if (ok) {
+    logout();
+  }
+});
 
 if (state.token) {
   enterApp();
