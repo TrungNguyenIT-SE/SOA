@@ -4,6 +4,7 @@ import com.soa.tuition.dto.StudentCreateRequest;
 import com.soa.tuition.dto.StudentResponse;
 import com.soa.tuition.dto.StudentUpdateRequest;
 import com.soa.tuition.service.StudentService;
+import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,7 +17,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/students")
-@Tag(name = "Sinh viên (Student)", description = "Quản lý Sinh viên và Học phí (Nguyên)")
+@Tag(name = "Người dùng - Tra cứu học phí (User)", description = "Dịch vụ Tra cứu Học phí dành cho Sinh viên và Phụ huynh (Nguyên)")
 public class StudentController {
 
     private final StudentService studentService;
@@ -25,34 +26,34 @@ public class StudentController {
         this.studentService = studentService;
     }
 
-    @GetMapping
-    @Operation(summary = "Xem danh sách toàn bộ sinh viên")
-    public List<StudentResponse> listStudents() {
-        return studentService.listStudents();
-    }
-
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Tạo sinh viên mới & học phí (Chặn trùng MSSV cùng kỳ)")
-    public StudentResponse createStudent(@Valid @RequestBody StudentCreateRequest req) {
-        return studentService.createStudent(req);
-    }
-
     @GetMapping("/{student_code}")
-    @Operation(summary = "Tra cứu thông tin sinh viên theo MSSV")
+    @Operation(summary = "Tra cứu thông tin sinh viên & học phí theo MSSV")
     public StudentResponse getStudent(@PathVariable("student_code") String studentCode) {
         return studentService.getStudent(studentCode);
     }
 
+    @Hidden
+    @GetMapping
+    public List<StudentResponse> listStudents() {
+        return studentService.listStudents();
+    }
+
+    @Hidden
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public StudentResponse createStudent(@Valid @RequestBody StudentCreateRequest req) {
+        return studentService.createStudent(req);
+    }
+
+    @Hidden
     @PutMapping("/{student_code}")
-    @Operation(summary = "Cập nhật sinh viên hoặc học phí (Kiểm tra số dư & trừ tiền khi chuyển sang Đã nộp)")
     public StudentResponse updateStudent(@PathVariable("student_code") String studentCode,
                                          @RequestBody StudentUpdateRequest req) {
         return studentService.updateStudent(studentCode, req);
     }
 
+    @Hidden
     @DeleteMapping("/{student_code}")
-    @Operation(summary = "Xóa sinh viên khỏi hệ thống")
     public ResponseEntity<Map<String, String>> deleteStudent(@PathVariable("student_code") String studentCode) {
         studentService.deleteStudent(studentCode);
         return ResponseEntity.ok(Map.of(

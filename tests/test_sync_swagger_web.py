@@ -304,6 +304,81 @@ def main():
     http_request("PUT", f"{KHOA_IDENTITY_URL}/api/v1/users/2", data={"balance": balance_before})
 
     # =========================================================================
+    # PHẦN 5: KIỂM THỬ CẤU TRÚC SWAGGER PHÂN TÁCH USER VS ADMIN (CẢ 3 THÀNH VIÊN)
+    # =========================================================================
+    print("\n--- [5] KIỂM THỬ CẤU TRÚC SWAGGER: PHÂN TÁCH RẠCH RÒI USER & ADMIN ---")
+
+    # 5.1 Phong (:8004): Đã loại bỏ 3 endpoint dư, chia 2 tag User và Admin chuẩn
+    status_p, spec_p = http_request("GET", f"{PHONG_PAYMENT_URL}/swagger/v1/swagger.json")
+    user_p_routes = []
+    admin_p_routes = []
+    if status_p == 200:
+        for path, methods in spec_p.get("paths", {}).items():
+            for m, op in methods.items():
+                if m.upper() in ["GET", "POST", "PUT", "DELETE"]:
+                    tags = " ".join(op.get("tags", []))
+                    if "User" in tags:
+                        user_p_routes.append(f"{m.upper()} {path}")
+                    elif "Admin" in tags:
+                        admin_p_routes.append(f"{m.upper()} {path}")
+
+    passed_phong_swagger = (
+        len(user_p_routes) == 3
+        and len(admin_p_routes) == 4
+        and "DELETE /api/v1/transactions/{id}" not in user_p_routes
+    )
+    print_test_result(
+        "5.1 [Swagger Phong :8004]: Loại bỏ 3 endpoint dư, tách chuẩn 3 User + 4 Admin",
+        passed_phong_swagger,
+        f"User: {len(user_p_routes)} APIs, Admin: {len(admin_p_routes)} APIs (Không còn bị lặp 10 endpoint)",
+    )
+    results.append(("Phong 5.1 Swagger User/Admin", passed_phong_swagger))
+
+    # 5.2 Nguyên (:8003): Tách biệt User Tra cứu/OTP và Admin Quản trị Sinh viên
+    status_n, spec_n = http_request("GET", f"{NGUYEN_TUITION_URL}/v3/api-docs")
+    user_n_count = 0
+    admin_n_count = 0
+    if status_n == 200:
+        for path, methods in spec_n.get("paths", {}).items():
+            for m, op in methods.items():
+                if m.upper() in ["GET", "POST", "PUT", "DELETE"]:
+                    tags = " ".join(op.get("tags", []))
+                    if "User" in tags:
+                        user_n_count += 1
+                    elif "Admin" in tags:
+                        admin_n_count += 1
+
+    passed_nguyen_swagger = user_n_count >= 3 and admin_n_count >= 5
+    print_test_result(
+        "5.2 [Swagger Nguyên :8003]: Tách riêng Người dùng Tra cứu/OTP và Quản trị Admin",
+        passed_nguyen_swagger,
+        f"User: {user_n_count} APIs, Admin: {admin_n_count} APIs",
+    )
+    results.append(("Nguyên 5.2 Swagger User/Admin", passed_nguyen_swagger))
+
+    # 5.3 Khoa (:8001): Tách biệt User cá nhân và Quản trị người dùng & Stats Admin
+    status_k, spec_k = http_request("GET", f"{KHOA_IDENTITY_URL}/openapi.json")
+    user_k_count = 0
+    admin_k_count = 0
+    if status_k == 200:
+        for path, methods in spec_k.get("paths", {}).items():
+            for m, op in methods.items():
+                if m.upper() in ["GET", "POST", "PUT", "DELETE"]:
+                    tags = " ".join(op.get("tags", []))
+                    if "User" in tags:
+                        user_k_count += 1
+                    elif "Admin" in tags:
+                        admin_k_count += 1
+
+    passed_khoa_swagger = user_k_count >= 1 and admin_k_count >= 6
+    print_test_result(
+        "5.3 [Swagger Khoa :8001]: Tách riêng Người dùng cá nhân và Quản trị Admin Dashboard/Users",
+        passed_khoa_swagger,
+        f"User: {user_k_count} APIs, Admin: {admin_k_count} APIs",
+    )
+    results.append(("Khoa 5.3 Swagger User/Admin", passed_khoa_swagger))
+
+    # =========================================================================
     # TỔNG KẾT
     # =========================================================================
     print("\n" + "=" * 70)

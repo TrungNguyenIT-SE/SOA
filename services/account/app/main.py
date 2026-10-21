@@ -202,7 +202,13 @@ class DepositCommand(BaseModel):
     amount: int = Field(gt=0)
 
 
-@app.get("/api/v1/accounts", response_model=list[AccountOut], tags=["Tài khoản & Số dư"], summary="Xem danh sách toàn bộ tài khoản ngân hàng")
+@app.get(
+    "/api/v1/admin/accounts",
+    response_model=list[AccountOut],
+    tags=["Quản trị tài khoản & Số dư (Admin)"],
+    summary="Xem danh sách toàn bộ tài khoản ngân hàng",
+)
+@app.get("/api/v1/accounts", response_model=list[AccountOut], include_in_schema=False)
 def list_accounts():
     """Xem danh sách toàn bộ tài khoản ngân hàng"""
     with SessionLocal() as db:
@@ -210,7 +216,13 @@ def list_accounts():
         return [AccountOut.model_validate(acc) for acc in accounts]
 
 
-@app.post("/api/v1/accounts/deposit", response_model=AccountOut, tags=["Tài khoản & Số dư"], summary="Nạp thêm tiền vào tài khoản ngân hàng")
+@app.post(
+    "/api/v1/admin/accounts/deposit",
+    response_model=AccountOut,
+    tags=["Quản trị tài khoản & Số dư (Admin)"],
+    summary="Nạp thêm tiền vào tài khoản ngân hàng",
+)
+@app.post("/api/v1/accounts/deposit", response_model=AccountOut, include_in_schema=False)
 def deposit(command: DepositCommand):
     """Nạp thêm tiền vào tài khoản"""
     with SessionLocal.begin() as db:
@@ -223,13 +235,23 @@ def deposit(command: DepositCommand):
         return AccountOut.model_validate(account)
 
 
-@app.get("/api/v1/accounts/me", response_model=AccountOut, tags=["Tài khoản & Số dư"], summary="Xem số dư khả dụng tài khoản đăng nhập")
+@app.get(
+    "/api/v1/accounts/me",
+    response_model=AccountOut,
+    tags=["Người dùng - Tài khoản (User)"],
+    summary="Xem số dư khả dụng tài khoản đăng nhập",
+)
 def my_account(user: Annotated[UserClaims, Depends(current_user)]):
     with SessionLocal() as db:
         return get_account_for_user(db, user.user_id)
 
 
-@app.get("/api/v1/accounts/me/transactions", response_model=PageOut, tags=["Tài khoản & Số dư"], summary="Xem lịch sử giao dịch (Ledger)")
+@app.get(
+    "/api/v1/accounts/me/transactions",
+    response_model=PageOut,
+    tags=["Người dùng - Tài khoản (User)"],
+    summary="Xem lịch sử giao dịch (Ledger)",
+)
 def my_transactions(
     user: Annotated[UserClaims, Depends(current_user)],
     page: int = Query(1, ge=1),

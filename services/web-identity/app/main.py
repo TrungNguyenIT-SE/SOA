@@ -263,7 +263,13 @@ def login(body: LoginIn, request: Request):
         }
 
 
-@app.get("/api/v1/users/me", response_model=UserOut, include_in_schema=False)
+@app.get(
+    "/api/v1/users/me",
+    response_model=UserOut,
+    include_in_schema=True,
+    tags=["Người dùng cá nhân (User)"],
+    summary="Xem thông tin tài khoản cá nhân đang đăng nhập",
+)
 def me(user: Annotated[Claims, Depends(current_user)]):
     return UserOut(**user.model_dump())
 
@@ -286,23 +292,28 @@ def internal_user(user_id: int):
 
 
 
-@app.get("/api/v1/users", response_model=list[UserOut], tags=["Người dùng (User)"], summary="Xem danh sách toàn bộ người dùng & số dư")
-
+@app.get(
+    "/api/v1/admin/users",
+    response_model=list[UserOut],
+    tags=["Quản trị hệ thống & Người dùng (Admin)"],
+    summary="Xem danh sách toàn bộ người dùng & số dư",
+)
+@app.get("/api/v1/users", response_model=list[UserOut], include_in_schema=False)
 def list_users():
-
     """Xem toàn bộ danh sách người dùng"""
-
     with SessionLocal() as db:
-
         users = db.scalars(select(User).order_by(User.id)).all()
-
         return [serialize_user(u) for u in users]
 
 
-
-
-
-@app.post("/api/v1/users", response_model=UserOut, status_code=201, tags=["Người dùng (User)"], summary="Tạo người dùng mới & cấp số dư ban đầu")
+@app.post(
+    "/api/v1/admin/users",
+    response_model=UserOut,
+    status_code=201,
+    tags=["Quản trị hệ thống & Người dùng (Admin)"],
+    summary="Tạo người dùng mới & cấp số dư ban đầu",
+)
+@app.post("/api/v1/users", response_model=UserOut, status_code=201, include_in_schema=False)
 def create_user(body: UserCreate):
     """Tạo người dùng mới kèm số dư"""
     with SessionLocal.begin() as db:
@@ -327,7 +338,13 @@ def create_user(body: UserCreate):
     return serialize_user(user, balance=body.balance)
 
 
-@app.get("/api/v1/users/{user_id}", response_model=UserOut, tags=["Người dùng (User)"], summary="Xem thông tin chi tiết một người dùng")
+@app.get(
+    "/api/v1/admin/users/{user_id}",
+    response_model=UserOut,
+    tags=["Quản trị hệ thống & Người dùng (Admin)"],
+    summary="Xem thông tin chi tiết một người dùng",
+)
+@app.get("/api/v1/users/{user_id}", response_model=UserOut, include_in_schema=False)
 def get_user_by_id(user_id: int):
     """Xem thông tin chi tiết một người dùng theo ID"""
     with SessionLocal.begin() as db:
@@ -337,7 +354,13 @@ def get_user_by_id(user_id: int):
         return serialize_user(user)
 
 
-@app.put("/api/v1/users/{user_id}", response_model=UserOut, tags=["Người dùng (User)"], summary="Cập nhật thông tin & số dư người dùng")
+@app.put(
+    "/api/v1/admin/users/{user_id}",
+    response_model=UserOut,
+    tags=["Quản trị hệ thống & Người dùng (Admin)"],
+    summary="Cập nhật thông tin & số dư người dùng",
+)
+@app.put("/api/v1/users/{user_id}", response_model=UserOut, include_in_schema=False)
 def update_user(user_id: int, body: UserUpdate):
     """Cập nhật thông tin người dùng và số dư"""
     with SessionLocal.begin() as db:
@@ -360,22 +383,19 @@ def update_user(user_id: int, body: UserUpdate):
     return serialize_user(user, balance=body.balance)
 
 
-@app.delete("/api/v1/users/{user_id}", tags=["Người dùng (User)"], summary="Xóa người dùng khỏi hệ thống")
-
+@app.delete(
+    "/api/v1/admin/users/{user_id}",
+    tags=["Quản trị hệ thống & Người dùng (Admin)"],
+    summary="Xóa người dùng khỏi hệ thống",
+)
+@app.delete("/api/v1/users/{user_id}", include_in_schema=False)
 def delete_user(user_id: int):
-
     """Xóa người dùng"""
-
     with SessionLocal.begin() as db:
-
         user = db.get(User, user_id)
-
         if not user:
-
             raise HTTPException(404, detail={"code": "USER_NOT_FOUND", "message": "Không tìm thấy người dùng."})
-
         db.delete(user)
-
         return {"status": "success", "message": f"Đã xóa người dùng {user_id}."}
 
 
@@ -528,7 +548,7 @@ def list_transactions():
 @app.post("/api/v1/transactions", include_in_schema=False, response_model=TransactionOut, status_code=201, tags=["Lịch sử giao dịch (Transactions)"], summary="Tạo bản ghi giao dịch mới")
 def create_transaction(body: TransactionCreate):
     """Tạo bản ghi giao dịch mới"""
-    return forward_payment_request("POST", "/api/v1/admin/transactions", body.model_dump())
+    return forward_payment_request("POST", "/api/v1/transactions", body.model_dump())
 
 
 @app.get("/api/v1/transactions/{transaction_id}", include_in_schema=False, response_model=TransactionOut, tags=["Lịch sử giao dịch (Transactions)"], summary="Tra cứu chi tiết một giao dịch")
@@ -549,13 +569,13 @@ def delete_transaction(transaction_id: str):
     return forward_payment_request("DELETE", f"/api/v1/admin/transactions/{transaction_id}")
 
 
-@app.get("/api/v1/admin/stats", include_in_schema=False, tags=["Quản trị (Admin)"], summary="Thống kê tổng quan số liệu Dashboard")
+@app.get("/api/v1/admin/stats", include_in_schema=True, tags=["Quản trị hệ thống & Người dùng (Admin)"], summary="Thống kê tổng quan số liệu Dashboard")
 def admin_stats():
     """Lấy số liệu thống kê thời gian thực cho Admin Dashboard"""
     with SessionLocal() as db:
         total_users = db.scalar(select(text("count(*)")).select_from(User)) or 0
     try:
-        students = forward_tuition_request("GET", "/api/v1/students")
+        students = forward_tuition_request("GET", "/api/v1/admin/students")
         total_students = len(students) if isinstance(students, list) else 0
     except Exception:
         total_students = 0

@@ -14,7 +14,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/otp")
-@Tag(name = "Dịch vụ OTP", description = "Dịch vụ Sinh và Xác thực mã OTP thanh toán học phí (Nguyên)")
+@Tag(name = "Người dùng - Xác thực OTP (User)", description = "Dịch vụ Sinh và Xác thực mã OTP thanh toán học phí (Nguyên)")
 public class OtpController {
 
     private final OtpService otpService;
