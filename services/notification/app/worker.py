@@ -26,7 +26,10 @@ SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "false").lower() == "true"
 SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").lower() == "true"
 FROM_EMAIL = os.getenv("FROM_EMAIL", "").strip()
 MAX_DELIVERY_ATTEMPTS = int(os.getenv("MAX_DELIVERY_ATTEMPTS", "5"))
-logging.basicConfig(level=logging.INFO, format='{"timestamp":"%(asctime)s","level":"%(levelname)s","service":"notification","message":"%(message)s"}')
+logging.basicConfig(
+    level=logging.INFO,
+    format='{"timestamp":"%(asctime)s","level":"%(levelname)s","service":"notification","message":"%(message)s"}',
+)
 logger = logging.getLogger("notification")
 
 
@@ -68,11 +71,30 @@ def format_datetime(value: str) -> str:
             parsed = parsed.replace(tzinfo=timezone.utc)
         return parsed.astimezone(timezone(timedelta(hours=7))).strftime("%H:%M, %d/%m/%Y")
     except (TypeError, ValueError):
-        return value
+        return str(value)
+
+
+def parse_payload(body: bytes) -> dict:
+    """
+    Parse message body từ cả hai nguồn:
+    - Java Spring AMQP (Jackson2JsonMessageConverter): có field "_class"
+    - Python pika: plain JSON dict
+    """
+    raw = json.loads(body.decode("utf-8"))
+    if isinstance(raw, dict):
+        raw.pop("_class", None)  # Bỏ Spring AMQP metadata nếu có
+        return raw
+    raise ValueError(f"Unexpected message format: {type(raw)}")
 
 
 def render(payload: dict) -> tuple[str, str, str]:
-    if payload["type"] == "otp.requested":
+    event_type = payload.get("type", "")
+    if event_type == "otp.requested":
+        # Validate required fields
+        required = ["to", "payer_name", "student_code", "amount", "otp", "payment_id", "expires_at"]
+        missing = [k for k in required if not payload.get(k)]
+        if missing:
+            raise ValueError(f"otp.requested thiếu fields: {missing}")
         subject = f"[iBanking Tuition] Xác thực giao dịch {payload['student_code']}"
         text = (
             f"Xin chào {payload['payer_name']},\n\n"
@@ -83,7 +105,12 @@ def render(payload: dict) -> tuple[str, str, str]:
             f"Mã hết hạn lúc: {format_datetime(payload['expires_at'])} và chỉ được dùng một lần.\n\n"
             "Nếu bạn không thực hiện giao dịch này, hãy bỏ qua email và không chia sẻ mã xác thực."
         )
-    else:
+    elif event_type == "payment.completed":
+        # Validate required fields
+        required = ["to", "payer_name", "student_name", "student_code", "amount", "balance_after", "payment_id", "completed_at"]
+        missing = [k for k in required if payload.get(k) is None]
+        if missing:
+            raise ValueError(f"payment.completed thiếu fields: {missing}")
         subject = f"[iBanking Tuition] Biên nhận thanh toán {payload['student_code']}"
         text = (
             f"Xin chào {payload['payer_name']},\n\n"
@@ -93,6 +120,8 @@ def render(payload: dict) -> tuple[str, str, str]:
             f"Mã giao dịch: {payload['payment_id']}\n"
             f"Thời gian: {format_datetime(payload['completed_at'])}\n"
         )
+    else:
+        raise ValueError(f"Loại event không được hỗ trợ: '{event_type}'. Hỗ trợ: 'otp.requested', 'payment.completed'")
     return payload["to"], subject, text
 
 
@@ -131,8 +160,8 @@ def render_html(payload: dict) -> str:
             detail_row("Số tiền", amount, emphasized=True),
             detail_row("Mã giao dịch", payment_id),
         ])
-        notice = '''<div style="margin-top:22px;padding:14px 16px;background:#fff8eb;border-left:3px solid #eaaa08;border-radius:7px;font-size:13px;line-height:1.6;color:#7a5b12;"><strong>Lưu ý bảo mật:</strong> iBanking không bao giờ yêu cầu bạn cung cấp mã OTP qua điện thoại hoặc tin nhắn.</div>'''
-    else:
+        notice = '<div style="margin-top:22px;padding:14px 16px;background:#fff8eb;border-left:3px solid #eaaa08;border-radius:7px;font-size:13px;line-height:1.6;color:#7a5b12;"><strong>Lưu ý bảo mật:</strong> iBanking không bao giờ yêu cầu bạn cung cấp mã OTP qua điện thoại hoặc tin nhắn.</div>'
+    else:  # payment.completed
         title = "Thanh toán thành công"
         preheader = f"Giao dịch học phí {student_code} đã hoàn tất"
         status_color = "#087f69"
@@ -143,14 +172,14 @@ def render_html(payload: dict) -> str:
           <h1 style="margin:0;font-size:26px;line-height:1.25;color:#0b1731;">Thanh toán học phí thành công</h1>
           <p style="margin:14px 0 24px;font-size:15px;line-height:1.65;color:#667085;">Xin chào <strong style="color:#172033;">{payer_name}</strong>, giao dịch của bạn đã được ghi nhận.</p>'''
         rows = "".join([
-            detail_row("Sinh viên", str(payload["student_name"])),
+            detail_row("Sinh viên", str(payload.get("student_name", ""))),
             detail_row("Mã sinh viên", student_code),
             detail_row("Số tiền thanh toán", amount, emphasized=True),
-            detail_row("Số dư còn lại", format_money(int(payload["balance_after"]))),
-            detail_row("Thời gian", format_datetime(payload["completed_at"])),
+            detail_row("Số dư còn lại", format_money(int(payload.get("balance_after", 0)))),
+            detail_row("Thời gian", format_datetime(payload.get("completed_at", ""))),
             detail_row("Mã giao dịch", payment_id),
         ])
-        notice = '''<div style="margin-top:22px;padding:14px 16px;background:#f5f7fb;border-radius:7px;font-size:13px;line-height:1.6;color:#667085;">Email này là biên nhận điện tử cho giao dịch của bạn. Vui lòng lưu lại khi cần đối chiếu.</div>'''
+        notice = '<div style="margin-top:22px;padding:14px 16px;background:#f5f7fb;border-radius:7px;font-size:13px;line-height:1.6;color:#667085;">Email này là biên nhận điện tử cho giao dịch của bạn. Vui lòng lưu lại khi cần đối chiếu.</div>'
 
     return f'''<!doctype html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{escape(title)}</title></head>
@@ -180,10 +209,10 @@ def render_html(payload: dict) -> str:
 </body></html>'''
 
 
-def validate_smtp_config() -> None:
+def check_smtp_config() -> bool:
+    """Kiểm tra SMTP config đủ hay chưa. Trả True nếu đủ, False nếu thiếu (chỉ log warning)."""
     missing = [
-        name
-        for name, value in (
+        name for name, value in (
             ("SMTP_HOST", SMTP_HOST),
             ("SMTP_USERNAME", SMTP_USERNAME),
             ("SMTP_PASSWORD", SMTP_PASSWORD),
@@ -192,14 +221,20 @@ def validate_smtp_config() -> None:
         if not value
     ]
     if missing:
-        raise RuntimeError(f"Thiếu cấu hình SMTP thật: {', '.join(missing)}")
+        logger.warning(f"smtp_config_incomplete missing={missing} — emails will not be sent")
+        return False
     if SMTP_USE_TLS and SMTP_USE_SSL:
-        raise RuntimeError("SMTP_USE_TLS và SMTP_USE_SSL không thể cùng bật")
-    if not 1 <= SMTP_PORT <= 65535:
-        raise RuntimeError("SMTP_PORT không hợp lệ")
+        logger.error("smtp_config_error: SMTP_USE_TLS và SMTP_USE_SSL không thể cùng bật")
+        return False
+    return True
 
 
 def send_email(recipient: str, subject: str, content: str, html_content: str | None = None) -> None:
+    # FIX: Không gọi validate_smtp_config() (raise exception) mà dùng check_smtp_config()
+    if not check_smtp_config():
+        raise RuntimeError(
+            "Cấu hình SMTP không đầy đủ — kiểm tra SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, FROM_EMAIL trong .env"
+        )
     message = EmailMessage()
     sender_domain = FROM_EMAIL.rpartition("@")[2] or None
     message["From"] = Address(display_name="iBanking Tuition", addr_spec=FROM_EMAIL)
@@ -213,9 +248,8 @@ def send_email(recipient: str, subject: str, content: str, html_content: str | N
     message.set_content(content)
     if html_content:
         message.add_alternative(html_content, subtype="html")
-    validate_smtp_config()
     smtp_class = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
-    options = {"timeout": 15}
+    options: dict = {"timeout": 15}
     if SMTP_USE_SSL:
         options["context"] = ssl.create_default_context()
     with smtp_class(SMTP_HOST, SMTP_PORT, **options) as smtp:
@@ -231,52 +265,109 @@ def send_email(recipient: str, subject: str, content: str, html_content: str | N
 
 
 def handle(channel, method, properties, body: bytes) -> None:
-    payload = json.loads(body.decode())
-    event_id = payload["event_id"]
+    # 1. Parse message — hỗ trợ Spring AMQP và plain Python JSON
+    try:
+        payload = parse_payload(body)
+    except Exception as exc:
+        logger.error(f"message_parse_error body_preview={body[:200]} error={exc}")
+        channel.basic_ack(method.delivery_tag)
+        return
+
+    event_id = payload.get("event_id") or str(uuid.uuid4())
+    event_type = payload.get("type", "unknown")
+    logger.info(f"message_received event_id={event_id} type={event_type} to={payload.get('to', '?')}")
+
+    # 2. Idempotency: bỏ qua nếu đã gửi
     with SessionLocal.begin() as db:
-        delivery = db.scalar(select(Delivery).where(Delivery.event_id == event_id).with_for_update())
-        if delivery and delivery.status == "SENT":
+        existing = db.scalar(select(Delivery).where(Delivery.event_id == event_id).with_for_update())
+        if existing and existing.status == "SENT":
+            logger.info(f"message_already_sent event_id={event_id} — skipping")
             channel.basic_ack(method.delivery_tag)
             return
-    recipient, subject, content = render(payload)
-    html_content = render_html(payload)
+
+    # 3. Render nội dung email
+    try:
+        recipient, subject, content = render(payload)
+        html_content = render_html(payload)
+    except Exception as exc:
+        logger.error(f"message_render_error event_id={event_id} error={exc} keys={list(payload.keys())}")
+        channel.basic_ack(method.delivery_tag)
+        return
+
     retry_count = int((properties.headers or {}).get("x-retry-count", 0)) if properties else 0
+
+    # 4. Gửi email
     try:
         send_email(recipient, subject, content, html_content)
         with SessionLocal.begin() as db:
             delivery = db.scalar(select(Delivery).where(Delivery.event_id == event_id).with_for_update())
             if not delivery:
-                delivery = Delivery(event_id=event_id, event_type=payload["type"], recipient=recipient, subject=subject, status="SENT")
+                delivery = Delivery(
+                    event_id=event_id, event_type=event_type,
+                    recipient=recipient, subject=subject, status="SENT",
+                )
                 db.add(delivery)
-            delivery.status = "SENT"
+            else:
+                delivery.status = "SENT"
             delivery.attempt_count = retry_count + 1
             delivery.last_error = None
             delivery.delivered_at = datetime.now(timezone.utc)
         channel.basic_ack(method.delivery_tag)
-        logger.info(f"email_sent event_id={event_id} type={payload['type']} recipient={recipient}")
+        logger.info(f"email_sent event_id={event_id} type={event_type} recipient={recipient}")
+
     except IntegrityError:
+        # Race condition: đã gửi ở luồng khác — an toàn ack
         channel.basic_ack(method.delivery_tag)
+        logger.info(f"email_duplicate_ack event_id={event_id}")
+
     except Exception as exc:
         next_attempt = retry_count + 1
+        # FIX BUG: status "FAILED" không tồn tại trong CheckConstraint → dùng "RETRYING"
+        status = "DEAD_LETTER" if next_attempt >= MAX_DELIVERY_ATTEMPTS else "RETRYING"
         with SessionLocal.begin() as db:
             delivery = db.scalar(select(Delivery).where(Delivery.event_id == event_id).with_for_update())
             if not delivery:
-                delivery = Delivery(event_id=event_id, event_type=payload["type"], recipient=recipient, subject=subject, status="FAILED")
+                delivery = Delivery(
+                    event_id=event_id, event_type=event_type,
+                    recipient=recipient, subject=subject, status=status,
+                )
                 db.add(delivery)
-            delivery.status = "DEAD_LETTER" if next_attempt >= MAX_DELIVERY_ATTEMPTS else "RETRYING"
+            else:
+                delivery.status = status
             delivery.attempt_count = next_attempt
             delivery.last_error = str(exc)[:2000]
         target = "notifications.dlq" if next_attempt >= MAX_DELIVERY_ATTEMPTS else "notifications"
-        channel.basic_publish(exchange="", routing_key=target, body=body, properties=pika.BasicProperties(delivery_mode=2, content_type="application/json", message_id=event_id, type=payload["type"], headers={"x-retry-count": next_attempt}))
+        channel.basic_publish(
+            exchange="",
+            routing_key=target,
+            body=body,
+            properties=pika.BasicProperties(
+                delivery_mode=2,
+                content_type="application/json",
+                message_id=event_id,
+                type=event_type,
+                headers={"x-retry-count": next_attempt},
+            ),
+        )
         channel.basic_ack(method.delivery_tag)
-        logger.warning(f"email_delivery_failed event_id={event_id} attempt={next_attempt} target={target} error={type(exc).__name__}")
+        logger.warning(
+            f"email_delivery_failed event_id={event_id} attempt={next_attempt} "
+            f"target={target} error={type(exc).__name__}: {exc}"
+        )
         if target == "notifications":
-            time.sleep(min(2**next_attempt, 8))
+            time.sleep(min(2 ** next_attempt, 8))
 
 
 def run() -> None:
-    validate_smtp_config()
-    logger.info(f"real_smtp_configured host={SMTP_HOST} port={SMTP_PORT} tls={SMTP_USE_TLS} ssl={SMTP_USE_SSL}")
+    # FIX BUG: Không crash worker nếu SMTP chưa cấu hình — chỉ log warning.
+    # Worker vẫn start và consume message; lỗi SMTP sẽ xảy ra khi send_email() được gọi
+    # và sẽ được retry theo cơ chế retry thông thường.
+    smtp_ok = check_smtp_config()
+    if smtp_ok:
+        logger.info(f"real_smtp_configured host={SMTP_HOST} port={SMTP_PORT} tls={SMTP_USE_TLS} ssl={SMTP_USE_SSL}")
+    else:
+        logger.warning("smtp_not_configured — worker running but emails will fail until SMTP env vars are set correctly")
+
     while True:
         try:
             connection = pika.BlockingConnection(pika.URLParameters(RABBITMQ_URL))
@@ -288,10 +379,9 @@ def run() -> None:
             logger.info("notification_worker_ready")
             channel.start_consuming()
         except Exception as exc:
-            logger.warning(f"notification_worker_reconnecting error={type(exc).__name__}")
+            logger.warning(f"notification_worker_reconnecting error={type(exc).__name__}: {exc}")
             time.sleep(3)
 
 
 if __name__ == "__main__":
     run()
-

@@ -110,14 +110,20 @@ services:
       - "8003:8000"
     environment:
       <<: *common-env
-      APP_INTERNAL_TOKEN: 
+      APP_INTERNAL_TOKEN: ${INTERNAL_API_TOKEN:-change-this-internal-token}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tuition_db
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-soa}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-soa_dev_password}
       ACCOUNT_SERVICE_URL: http://account:8000
       PAYMENT_SERVICE_URL: http://payment:8000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     labels:
       - traefik.enable=true

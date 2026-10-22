@@ -1,5 +1,6 @@
 package com.soa.tuition.service;
 
+import com.soa.tuition.config.RabbitMQConfig;
 import com.soa.tuition.dto.StudentCreateRequest;
 import com.soa.tuition.dto.StudentResponse;
 import com.soa.tuition.dto.StudentUpdateRequest;
@@ -10,6 +11,7 @@ import com.soa.tuition.repository.StudentRepository;
 import com.soa.tuition.repository.TuitionInvoiceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final TuitionInvoiceRepository invoiceRepository;
     private final RestTemplate restTemplate;
+    private final RabbitTemplate rabbitTemplate;
 
     @Value("${app.internal-token}")
     private String internalToken;
@@ -40,10 +43,12 @@ public class StudentService {
 
     public StudentService(StudentRepository studentRepository,
                           TuitionInvoiceRepository invoiceRepository,
-                          RestTemplate restTemplate) {
+                          RestTemplate restTemplate,
+                          RabbitTemplate rabbitTemplate) {
         this.studentRepository = studentRepository;
         this.invoiceRepository = invoiceRepository;
         this.restTemplate = restTemplate;
+        this.rabbitTemplate = rabbitTemplate;
     }
 
     public List<StudentResponse> listStudents() {
@@ -105,18 +110,16 @@ public class StudentService {
         TuitionInvoice invoice = invoiceRepository.findFirstByStudent_StudentCodeOrderByTermDesc(cleanCode)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND", "Không tìm thấy khoản học phí của sinh viên: " + cleanCode));
 
-        if (req.getTerm() != null && !req.getTerm().isBlank()) {
-            invoice.setTerm(req.getTerm().trim());
-        }
-        if (req.getAmount() != null) {
-            invoice.setAmount(req.getAmount());
-        }
-
         if (req.getStatus() != null && !req.getStatus().isBlank()) {
             String targetStatus = req.getStatus().trim().toUpperCase();
 
-            // Nếu chuyển từ CHƯA NỘP sang ĐÃ NỘP -> KIỂM TRA SỐ DƯ & TRỪ TIỀN
-            if ("PAID".equals(targetStatus) && !"PAID".equals(invoice.getStatus())) {
+            // Nếu chuyển sang ĐÃ NỘP (PAID)
+            if ("PAID".equals(targetStatus)) {
+                // CHẶN TUYỆT ĐỐI NẾU ĐÃ THANH TOÁN RỒI
+                if ("PAID".equals(invoice.getStatus())) {
+                    throw new AppException(HttpStatus.CONFLICT, "ALREADY_PAID",
+                            "Khoản học phí của sinh viên " + cleanCode + " (học kỳ " + invoice.getTerm() + ") đã được thanh toán trước đó. Không thể thanh toán lại!");
+                }
                 processPaymentDebit(student, invoice, req.getPayerUserId());
             } else if ("UNPAID".equals(targetStatus)) {
                 invoice.setStatus("UNPAID");
@@ -127,6 +130,63 @@ public class StudentService {
             }
         }
 
+        // Chặn không cho sửa số tiền nếu hóa đơn đã thanh toán
+        if ("PAID".equals(invoice.getStatus()) && req.getAmount() != null && !req.getAmount().equals(invoice.getAmount())) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_PAID_INVOICE",
+                    "Hóa đơn học phí của sinh viên " + cleanCode + " đã thanh toán hoàn tất. Không thể chỉnh sửa số tiền học phí!");
+        }
+
+        if (req.getFullName() != null && !req.getFullName().isBlank()) {
+            student.setFullName(req.getFullName().trim());
+            studentRepository.save(student);
+        }
+
+        if (req.getTerm() != null && !req.getTerm().isBlank()) {
+            invoice.setTerm(req.getTerm().trim());
+        }
+        if (req.getAmount() != null) {
+            invoice.setAmount(req.getAmount());
+        }
+
+        invoiceRepository.save(invoice);
+        return StudentResponse.fromEntity(invoice);
+    }
+
+    public Integer findUserIdByEmail(String email) {
+        if (email == null || email.isBlank()) return 1;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Token", internalToken);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            String url = "http://web-identity:8000/internal/v1/users/by-email/" + email.trim();
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+            if (resp.getBody() != null && resp.getBody().containsKey("id")) {
+                int id = ((Number) resp.getBody().get("id")).intValue();
+                log.info("[RESOLVED PAYER USER ID] Email: {} -> User ID: {}", email, id);
+                return id;
+            }
+        } catch (Exception e) {
+            log.warn("[RESOLVE USER ID BY EMAIL FAILED] Email: {} Error: {}", email, e.getMessage());
+        }
+        return 1;
+    }
+
+    @Transactional
+    public StudentResponse payTuitionByStudentCodeAndEmail(String studentCode, String payerEmail) {
+        String cleanCode = studentCode.trim().toUpperCase();
+        Student student = studentRepository.findByStudentCode(cleanCode)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "STUDENT_NOT_FOUND", "Không tìm thấy sinh viên: " + cleanCode));
+
+        TuitionInvoice invoice = invoiceRepository.findFirstByStudent_StudentCodeOrderByTermDesc(cleanCode)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "INVOICE_NOT_FOUND", "Không tìm thấy khoản học phí của sinh viên: " + cleanCode));
+
+        if ("PAID".equals(invoice.getStatus())) {
+            throw new AppException(HttpStatus.CONFLICT, "ALREADY_PAID",
+                    "Khoản học phí của sinh viên " + cleanCode + " (học kỳ " + invoice.getTerm() + ") đã được thanh toán trước đó. Không thể thanh toán lại!");
+        }
+
+        Integer payerUserId = findUserIdByEmail(payerEmail);
+        processPaymentDebit(student, invoice, payerUserId);
         invoiceRepository.save(invoice);
         return StudentResponse.fromEntity(invoice);
     }
@@ -218,6 +278,32 @@ public class StudentService {
         invoice.setStatus("PAID");
         invoice.setPaidAt(Instant.now());
         invoice.setPaidByPaymentId(paymentId);
+
+        // Publish email xác nhận thanh toán lên RabbitMQ (bất đồng bộ — lỗi không rollback)
+        final String finalPayerName = payerName;
+        final String finalPayerEmail = payerEmail;
+        final long finalAmount = invoice.getAmount();
+        final long finalBalanceAfter = availableBalance - invoice.getAmount();
+        final UUID finalPaymentId = paymentId;
+        final Instant finalCompletedAt = Instant.now();
+        try {
+            Map<String, Object> notifEvent = new HashMap<>();
+            notifEvent.put("event_id", UUID.randomUUID().toString());
+            notifEvent.put("type", "payment.completed");
+            notifEvent.put("to", finalPayerEmail);
+            notifEvent.put("payer_name", finalPayerName);
+            notifEvent.put("student_name", student.getFullName());
+            notifEvent.put("student_code", student.getStudentCode());
+            notifEvent.put("amount", finalAmount);
+            notifEvent.put("balance_after", Math.max(0L, finalBalanceAfter));
+            notifEvent.put("payment_id", finalPaymentId.toString());
+            notifEvent.put("completed_at", finalCompletedAt.toString());
+            rabbitTemplate.convertAndSend(RabbitMQConfig.NOTIFICATIONS_QUEUE, notifEvent);
+            log.info("[PAYMENT COMPLETED EVENT PUBLISHED] paymentId={} email={}", finalPaymentId, finalPayerEmail);
+        } catch (Exception e) {
+            // Không để lỗi RabbitMQ rollback giao dịch tài chính đã hoàn tất
+            log.warn("[PAYMENT COMPLETED EVENT FAILED] paymentId={} error={}", finalPaymentId, e.getMessage());
+        }
     }
 
     @Transactional

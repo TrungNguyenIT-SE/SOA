@@ -42,11 +42,6 @@ public class InternalTuitionController {
         ));
     }
 
-    @GetMapping("/api/v1/tuition-invoices/by-student/{student_code}")
-    public StudentResponse getInvoiceByStudent(@PathVariable("student_code") String studentCode) {
-        return studentService.getStudent(studentCode);
-    }
-
     @GetMapping("/internal/v1/tuition-invoices/{invoice_id}")
     public StudentResponse getInvoiceById(@PathVariable("invoice_id") UUID invoiceId) {
         TuitionInvoice inv = invoiceRepository.findById(invoiceId)

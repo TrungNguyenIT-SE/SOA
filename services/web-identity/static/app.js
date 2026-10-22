@@ -97,7 +97,10 @@ async function loadDashboard() {
 
   const isAdmin = user.username === "admin";
   const badge = $("adminBadge");
+  const adminTab = $("navAdminTab");
   if (badge) badge.classList.toggle("hidden", !isAdmin);
+  // Ẩn hoàn toàn tab Quản Trị với user thường
+  if (adminTab) adminTab.classList.toggle("hidden", !isAdmin);
 
   if (isAdmin) {
     switchView("admin");
@@ -143,6 +146,10 @@ function logout() {
 // VIEW SWITCHING (PAYER vs ADMIN)
 // -------------------------------------------------------------
 function switchView(target) {
+  // Guard: chỉ admin mới vào được admin view
+  if (target === "admin" && (!state.user || state.user.username !== "admin")) {
+    target = "payer";
+  }
   const isPayer = target === "payer";
   $("navPayerTab").classList.toggle("active", isPayer);
   $("navAdminTab").classList.toggle("active", !isPayer);
@@ -1048,9 +1055,33 @@ $("lookupForm").addEventListener("submit", async (event) => {
     $("tuitionAmount").textContent = money(state.tuition.amount);
     $("tuitionCard").classList.remove("hidden");
     $("acceptTerms").checked = false;
-    $("createPaymentButton").disabled = true;
-    if (Number(state.account.available_balance) < Number(state.tuition.amount)) {
-      showMessage("Số dư khả dụng không đủ để thanh toán toàn bộ học phí.");
+
+    const alreadyPaid = state.tuition.status === "PAID";
+    if (alreadyPaid) {
+      // Hiển thị trạng thái đã thanh toán, khóa không cho thanh toán tiếp
+      $("createPaymentButton").disabled = true;
+      $("createPaymentButton").classList.add("hidden");
+      $("acceptTerms").closest("label").classList.add("hidden");
+      let paidBanner = $("paidStatusBanner");
+      if (!paidBanner) {
+        paidBanner = document.createElement("div");
+        paidBanner.id = "paidStatusBanner";
+        paidBanner.className = "message success";
+        paidBanner.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:12px;font-weight:600;";
+        $("tuitionCard").appendChild(paidBanner);
+      }
+      paidBanner.innerHTML = `✅ Học phí kỳ <strong>${state.tuition.term}</strong> đã được thanh toán. Không thể thực hiện giao dịch mới.`;
+      paidBanner.classList.remove("hidden");
+    } else {
+      // Ẩn banner nếu có (từ lần tra cứu trước)
+      const paidBanner = $("paidStatusBanner");
+      if (paidBanner) paidBanner.classList.add("hidden");
+      $("createPaymentButton").classList.remove("hidden");
+      $("acceptTerms").closest("label").classList.remove("hidden");
+      $("createPaymentButton").disabled = true;
+      if (Number(state.account.available_balance) < Number(state.tuition.amount)) {
+        showMessage("Số dư khả dụng không đủ để thanh toán toàn bộ học phí.");
+      }
     }
   } catch (error) {
     $("tuitionCard").classList.add("hidden");
@@ -1066,6 +1097,8 @@ $("lookupForm").addEventListener("submit", async (event) => {
 });
 
 $("acceptTerms").addEventListener("change", (event) => {
+  // Chỉ enable nút khi chưa thanh toán và đủ số dư
+  if (!state.tuition || state.tuition.status === "PAID") return;
   $("createPaymentButton").disabled = !event.target.checked || Number(state.account.available_balance) < Number(state.tuition.amount);
 });
 
@@ -1086,6 +1119,7 @@ $("createPaymentButton").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({
         email: userEmail,
+        payer_name: state.user ? state.user.full_name : userEmail.split("@")[0],
         student_code: state.tuition.student_code,
         amount: state.tuition.amount,
       }),
@@ -1104,8 +1138,8 @@ $("createPaymentButton").addEventListener("click", async () => {
     $("maskedEmail").textContent = state.payment.masked_email;
     startCountdown(state.payment.otp_expires_at);
     startResendCooldown(60);
-    showMessage(`Mã OTP đã được gửi đến email ${userEmail}. (Demo OTP: ${otpRes.otp_code})`, "success");
-    showToast(`✓ Mã OTP đã được gửi đến email ${userEmail}. (Demo: ${otpRes.otp_code})`, "success", 6000);
+    showMessage(`Mã OTP đã được gửi đến email ${maskEmail(userEmail)}. Vui lòng kiểm tra hộp thư.`, "success");
+    showToast(`✓ Mã OTP đã được gửi đến email ${maskEmail(userEmail)}.`, "success", 6000);
   } catch (error) {
     showMessage(error.message);
     showErrorModal({
@@ -1182,8 +1216,8 @@ $("otpForm").addEventListener("submit", async (event) => {
   setLoading(button, true);
   try {
     const otp = $("otpCode").value.trim();
-    // 1. Xác thực OTP qua Dịch vụ Java của Nguyên
-    await api("/api/v1/otp/verify", {
+    // 1. Xác thực OTP & Tự động hoàn tất trừ tiền và thanh toán học phí
+    const verifyRes = await api("/api/v1/otp/verify", {
       method: "POST",
       body: JSON.stringify({
         otp: otp,
@@ -1191,20 +1225,11 @@ $("otpForm").addEventListener("submit", async (event) => {
       }),
     });
 
-    // 2. Chuyển học phí sang ĐÃ NỘP (Nguyên) -> Tự động kiểm tra số dư, trừ tiền (Account) và ghi lịch sử (Phong C#)
-    await api(`/api/v1/students/${encodeURIComponent(state.tuition.student_code)}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        status: "PAID",
-        payer_user_id: state.user ? state.user.id : 1,
-      }),
-    });
-
     await showSuccess({
       id: uuid(),
-      student_code: state.tuition.student_code,
-      student_name: state.tuition.student_name,
-      amount: state.tuition.amount,
+      student_code: verifyRes.student_code || state.tuition.student_code,
+      student_name: verifyRes.student_name || state.tuition.student_name,
+      amount: verifyRes.amount || state.tuition.amount,
       status: "SUCCEEDED",
       completed_at: new Date().toISOString(),
     });
@@ -1231,6 +1256,7 @@ $("resendOtpButton").addEventListener("click", async () => {
       method: "POST",
       body: JSON.stringify({
         email: userEmail,
+        payer_name: state.user ? state.user.full_name : userEmail.split("@")[0],
         student_code: state.tuition.student_code,
         amount: state.tuition.amount,
       }),
@@ -1240,8 +1266,8 @@ $("resendOtpButton").addEventListener("click", async () => {
     state.payment.otp_expires_at = otpRes.expires_at || new Date(Date.now() + 300000).toISOString();
     startCountdown(state.payment.otp_expires_at);
     startResendCooldown(60);
-    showMessage(`Mã OTP mới đã được gửi tới email của bạn. (Demo OTP: ${otpRes.otp_code})`, "success");
-    showToast(`✓ Mã OTP mới đã được gửi tới email. (Demo: ${otpRes.otp_code})`, "success", 6000);
+    showMessage(`Mã OTP mới đã được gửi tới email của bạn. Vui lòng kiểm tra hộp thư.`, "success");
+    showToast(`✓ Mã OTP mới đã được gửi tới email của bạn.`, "success", 6000);
   } catch (error) {
     showMessage(error.message);
     showErrorModal({
