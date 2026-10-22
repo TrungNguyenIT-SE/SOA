@@ -48,10 +48,10 @@ public class TransactionsController : ControllerBase
         var tx = new PaymentTransaction
         {
             Id = paymentId,
-            PayerUserId = 1,
+            PayerUserId = dto.PayerUserId ?? 1,
             PayerName = dto.PayerName.Trim(),
             PayerEmail = dto.PayerEmail.Trim(),
-            AccountId = Guid.NewGuid(),
+            AccountId = dto.AccountId ?? Guid.Empty,
             TuitionInvoiceId = Guid.NewGuid(),
             StudentCode = dto.StudentCode.Trim().ToUpper(),
             StudentName = dto.StudentName.Trim(),

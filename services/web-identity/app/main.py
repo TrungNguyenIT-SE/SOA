@@ -384,6 +384,8 @@ def update_user(user_id: int, body: UserUpdate):
         user = db.get(User, user_id)
         if not user:
             raise HTTPException(404, detail={"code": "USER_NOT_FOUND", "message": "Không tìm thấy người dùng."})
+        if user.username == "admin" and body.status and body.status != "ACTIVE":
+            raise HTTPException(400, detail={"code": "CANNOT_LOCK_ADMIN", "message": "Không thể khóa hoặc vô hiệu hóa tài khoản Quản trị viên (admin)."})
         if body.full_name is not None:
             user.full_name = body.full_name.strip()
         if body.phone is not None:
@@ -413,6 +415,8 @@ def delete_user(user_id: int):
         user = db.get(User, user_id)
         if not user:
             raise HTTPException(404, detail={"code": "USER_NOT_FOUND", "message": "Không tìm thấy người dùng."})
+        if user.username == "admin":
+            raise HTTPException(400, detail={"code": "CANNOT_DELETE_ADMIN", "message": "Không thể xóa tài khoản Quản trị viên (admin)."})
         db.delete(user)
         return {"status": "success", "message": f"Đã xóa người dùng {user_id}."}
 
@@ -575,6 +579,7 @@ class TransactionOut(BaseModel):
 
 
 class TransactionCreate(BaseModel):
+    payer_user_id: int | None = Field(default=None, examples=[2])
     payer_name: str = Field(min_length=1, max_length=160, examples=["Hoàng Thái Đăng Khoa"])
     payer_email: str = Field(min_length=5, max_length=254, examples=["dangkhoa040706@gmail.com"])
     student_code: str = Field(min_length=3, max_length=20, examples=["52400001"])

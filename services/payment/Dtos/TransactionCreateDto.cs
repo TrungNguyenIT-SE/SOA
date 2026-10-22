@@ -4,6 +4,12 @@ namespace PaymentService.Dtos;
 
 public class TransactionCreateDto
 {
+    [JsonPropertyName("payer_user_id")]
+    public int? PayerUserId { get; set; }
+
+    [JsonPropertyName("account_id")]
+    public Guid? AccountId { get; set; }
+
     [JsonPropertyName("payer_name")]
     public string PayerName { get; set; } = string.Empty;
 
