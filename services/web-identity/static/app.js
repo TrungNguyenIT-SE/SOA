@@ -1187,7 +1187,7 @@ async function showSuccess(result) {
   $("resultMessage").textContent = "Khoản học phí đã được thanh toán và email xác nhận đang được gửi.";
   await loadDashboard();
   $("resultDetails").innerHTML = `
-    <dt>Mã giao dịch</dt><dd>${result.id.slice(0, 8)}</dd>
+    <dt>Mã giao dịch</dt><dd>${((result.id || "").slice(0, 8)).toUpperCase()}</dd>
     <dt>MSSV</dt><dd>${result.student_code}</dd>
     <dt>Sinh viên</dt><dd>${result.student_name}</dd>
     <dt>Số tiền</dt><dd>${money(result.amount)}</dd>
@@ -1195,18 +1195,6 @@ async function showSuccess(result) {
     <dt>Thời gian</dt><dd>${new Date(result.completed_at).toLocaleString("vi-VN")}</dd>
     <dt>Trạng thái</dt><dd>${result.status}</dd>
   `;
-}
-
-async function pollPayment() {
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    const result = await api(`/api/v1/payments/${state.payment.id}`);
-    if (result.status === "SUCCEEDED") return showSuccess(result);
-    if (!["PROCESSING", "OTP_PENDING"].includes(result.status)) {
-      throw new Error(`Giao dịch kết thúc với trạng thái ${result.status}.`);
-    }
-  }
-  throw new Error("Giao dịch vẫn đang xử lý. Bạn có thể kiểm tra lại trong lịch sử.");
 }
 
 $("otpForm").addEventListener("submit", async (event) => {

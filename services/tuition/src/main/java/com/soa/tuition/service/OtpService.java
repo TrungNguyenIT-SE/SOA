@@ -53,8 +53,16 @@ public class OtpService {
             throw new AppException(HttpStatus.BAD_REQUEST, "STUDENT_CODE_REQUIRED",
                     "Mã số sinh viên (student_code) không được để trống khi yêu cầu mã OTP thanh toán.");
         }
+        if (req.getEmail() == null || req.getEmail().trim().isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "EMAIL_REQUIRED",
+                    "Email người nộp tiền (email) không được để trống khi yêu cầu mã OTP thanh toán.");
+        }
 
         String cleanCode = req.getStudentCode().trim().toUpperCase();
+        String cleanEmail = req.getEmail().trim();
+
+        // 0. Xác thực người nộp tiền có tài khoản ngân hàng trong hệ thống hay không
+        studentService.findUserIdByEmail(cleanEmail);
 
         // 1. Kiểm tra sinh viên và hóa đơn học phí có tồn tại hay không
         TuitionInvoice invoice = invoiceRepository.findFirstByStudent_StudentCodeOrderByTermDesc(cleanCode)

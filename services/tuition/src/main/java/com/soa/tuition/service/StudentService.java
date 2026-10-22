@@ -130,15 +130,16 @@ public class StudentService {
             }
         }
 
-        // Chặn không cho sửa số tiền nếu hóa đơn đã thanh toán
-        if ("PAID".equals(invoice.getStatus()) && req.getAmount() != null && !req.getAmount().equals(invoice.getAmount())) {
-            throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_PAID_INVOICE",
-                    "Hóa đơn học phí của sinh viên " + cleanCode + " đã thanh toán hoàn tất. Không thể chỉnh sửa số tiền học phí!");
-        }
-
-        if (req.getFullName() != null && !req.getFullName().isBlank()) {
-            student.setFullName(req.getFullName().trim());
-            studentRepository.save(student);
+        // Chặn không cho sửa số tiền hoặc học kỳ nếu hóa đơn đã thanh toán
+        if ("PAID".equals(invoice.getStatus())) {
+            if (req.getAmount() != null && !req.getAmount().equals(invoice.getAmount())) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_PAID_INVOICE",
+                        "Hóa đơn học phí của sinh viên " + cleanCode + " đã thanh toán hoàn tất. Không thể chỉnh sửa số tiền học phí!");
+            }
+            if (req.getTerm() != null && !req.getTerm().isBlank() && !req.getTerm().trim().equalsIgnoreCase(invoice.getTerm())) {
+                throw new AppException(HttpStatus.BAD_REQUEST, "CANNOT_MODIFY_PAID_INVOICE",
+                        "Hóa đơn học phí của sinh viên " + cleanCode + " đã thanh toán hoàn tất. Không thể thay đổi học kỳ của hóa đơn đã nộp!");
+            }
         }
 
         if (req.getTerm() != null && !req.getTerm().isBlank()) {
@@ -153,7 +154,9 @@ public class StudentService {
     }
 
     public Integer findUserIdByEmail(String email) {
-        if (email == null || email.isBlank()) return 1;
+        if (email == null || email.isBlank()) {
+            throw new AppException(HttpStatus.BAD_REQUEST, "PAYER_EMAIL_REQUIRED", "Email người nộp tiền không được để trống!");
+        }
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-Internal-Token", internalToken);
@@ -167,8 +170,11 @@ public class StudentService {
             }
         } catch (Exception e) {
             log.warn("[RESOLVE USER ID BY EMAIL FAILED] Email: {} Error: {}", email, e.getMessage());
+            throw new AppException(HttpStatus.NOT_FOUND, "PAYER_USER_NOT_FOUND",
+                    "Không tìm thấy tài khoản người dùng với email: " + email + ". Vui lòng sử dụng email tài khoản hợp lệ để thanh toán!");
         }
-        return 1;
+        throw new AppException(HttpStatus.NOT_FOUND, "PAYER_USER_NOT_FOUND",
+                "Không tìm thấy tài khoản người dùng với email: " + email);
     }
 
     @Transactional
