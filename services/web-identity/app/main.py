@@ -56,10 +56,10 @@ SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 def seed() -> None:
     fixtures = [
+        ("nguyenvana", "hoangthaidangkhoa", "Password123@", "Hoàng Thái Đăng Khoa", "0901000001", os.getenv("DEMO_EMAIL_1", "dangkhoa040706@gmail.com")),
+        ("tranthib", "dinhthanhphong", "Password123@", "Đinh Thanh Phong", "0901000002", os.getenv("DEMO_EMAIL_2", "thanhphong090406@gmail.com")),
+        ("levanc", "nguyentrungnguyen", "Password123@", "Nguyễn Trung Nguyên", "0901000003", os.getenv("DEMO_EMAIL_3", "trnguynnn@gmail.com")),
         ("admin", "admin", "Password123@", "Quản Trị Viên (Admin)", "0900000000", "admin@ibanking.vn"),
-        ("nguyenvana", "hoangthaidangkhoa", "Password123@", "Hoàng Thái Đăng Khoa", "0901000001", os.getenv("DEMO_EMAIL_1", "payer1@example.com")),
-        ("tranthib", "dinhthanhphong", "Password123@", "Đinh Thanh Phong", "0901000002", os.getenv("DEMO_EMAIL_2", "payer2@example.com")),
-        ("levanc", "nguyentrungnguyen", "Password123@", "Nguyễn Trung Nguyên", "0901000003", os.getenv("DEMO_EMAIL_3", "payer3@example.com")),
     ]
     with SessionLocal.begin() as db:
         for legacy_username, username, password, full_name, phone, email in fixtures:
