@@ -80,7 +80,12 @@ async def lifespan(_: FastAPI):
     yield
 
 
-app = FastAPI(title="Account Service", version="1.0.0", lifespan=lifespan)
+app = FastAPI(
+    title="Quản lý Tài khoản & Số dư (Khoa)",
+    description="Microservice phụ trách Quản lý Tài khoản Ngân hàng, Số dư ví và Ghi sổ cái (Ledger) (Python 3.12 - FastAPI).",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
 
 class UserClaims(BaseModel):

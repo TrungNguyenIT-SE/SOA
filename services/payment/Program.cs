@@ -39,6 +39,7 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1",
         Description = "Microservice phụ trách Quản lý Lịch sử giao dịch thanh toán và Xử lý hoàn tiền cho người nộp (C# 12 - ASP.NET Core 8)."
     });
+    c.DocumentFilter<PaymentTagDescriptionsDocumentFilter>();
 });
 
 var app = builder.Build();
@@ -68,3 +69,23 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+public class PaymentTagDescriptionsDocumentFilter : Swashbuckle.AspNetCore.SwaggerGen.IDocumentFilter
+{
+    public void Apply(OpenApiDocument swaggerDoc, Swashbuckle.AspNetCore.SwaggerGen.DocumentFilterContext context)
+    {
+        swaggerDoc.Tags = new List<OpenApiTag>
+        {
+            new OpenApiTag
+            {
+                Name = "Người dùng - Giao dịch (User)",
+                Description = "Dịch vụ Tra cứu và Ghi nhận Lịch sử nộp học phí của Người dùng (Phong)."
+            },
+            new OpenApiTag
+            {
+                Name = "Quản trị - Lịch sử giao dịch (Admin)",
+                Description = "Quản trị Toàn bộ Lịch sử Giao dịch và Xử lý Hoàn tiền SAGA / Giao dịch bồi hoàn tự động (Phong)."
+            }
+        };
+    }
+}

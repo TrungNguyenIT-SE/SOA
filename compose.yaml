@@ -14,8 +14,6 @@ services:
     depends_on:
       web-identity:
         condition: service_healthy
-      account:
-        condition: service_healthy
       tuition:
         condition: service_healthy
       payment:
@@ -60,6 +58,7 @@ services:
     environment:
       <<: *common-env
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/identity_db
+      ACCOUNT_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/account_db
       ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-30}
       DEMO_EMAIL_1: ${DEMO_EMAIL_1:-payer1@example.com}
       DEMO_EMAIL_2: ${DEMO_EMAIL_2:-payer2@example.com}
@@ -69,7 +68,7 @@ services:
         condition: service_healthy
     labels:
       - traefik.enable=true
-      - traefik.http.routers.identity-api.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/users`) || PathPrefix(`/internal/v1/users`)
+      - traefik.http.routers.identity-api.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/users`) || PathPrefix(`/internal/v1/users`) || PathPrefix(`/api/v1/accounts`) || PathPrefix(`/internal/v1/accounts`)
       - traefik.http.routers.identity-api.priority=100
       - traefik.http.services.identity.loadbalancer.server.port=8000
       - traefik.http.routers.web.rule=PathPrefix(`/`)
@@ -80,29 +79,10 @@ services:
       interval: 10s
       timeout: 3s
       retries: 20
-    networks: [soa-net]
-
-  account:
-    build: ./services/account
-    ports:
-      - "8002:8000"
-    environment:
-      <<: *common-env
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-soa}:${POSTGRES_PASSWORD:-soa_dev_password}@postgres:5432/account_db
-    depends_on:
-      postgres:
-        condition: service_healthy
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.account.rule=PathPrefix(`/api/v1/accounts`)
-      - traefik.http.routers.account.priority=100
-      - traefik.http.services.account.loadbalancer.server.port=8000
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 10s
-      timeout: 3s
-      retries: 20
-    networks: [soa-net]
+    networks:
+      soa-net:
+        aliases:
+          - account
 
   tuition:
     build: ./services/tuition
@@ -150,7 +130,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      account:
+      web-identity:
         condition: service_healthy
       tuition:
         condition: service_healthy
